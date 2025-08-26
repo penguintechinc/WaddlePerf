@@ -1,0 +1,69 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Blur filter for speed lines -->
+    <filter id="motionBlur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2,0.5"/>
+    </filter>
+    
+    <!-- Yellow gradient for eyebrows -->
+    <linearGradient id="yellowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Speed/motion lines behind penguin -->
+  <g filter="url(#motionBlur)" opacity="0.6">
+    <line x1="10" y1="50" x2="70" y2="50" stroke="#87CEEB" stroke-width="2"/>
+    <line x1="15" y1="70" x2="85" y2="70" stroke="#87CEEB" stroke-width="1.5"/>
+    <line x1="8" y1="90" x2="75" y2="90" stroke="#87CEEB" stroke-width="2"/>
+    <line x1="12" y1="110" x2="80" y2="110" stroke="#87CEEB" stroke-width="1.5"/>
+    <line x1="5" y1="130" x2="90" y2="130" stroke="#87CEEB" stroke-width="2"/>
+    <line x1="18" y1="150" x2="88" y2="150" stroke="#87CEEB" stroke-width="1.5"/>
+  </g>
+  
+  <!-- Penguin body (black) -->
+  <ellipse cx="120" cy="140" rx="35" ry="50" fill="#2F2F2F"/>
+  
+  <!-- Penguin belly (white) -->
+  <ellipse cx="120" cy="140" rx="25" ry="35" fill="#FFFFFF"/>
+  
+  <!-- Penguin head (black) -->
+  <ellipse cx="120" cy="80" rx="30" ry="35" fill="#2F2F2F"/>
+  
+  <!-- White face area -->
+  <ellipse cx="120" cy="85" rx="20" ry="25" fill="#FFFFFF"/>
+  
+  <!-- Beak (orange) -->
+  <polygon points="120,90 110,95 120,100 130,95" fill="#FF8C00"/>
+  
+  <!-- Eyes (black pupils) -->
+  <circle cx="112" cy="75" r="3" fill="#000000"/>
+  <circle cx="128" cy="75" r="3" fill="#000000"/>
+  
+  <!-- Eye whites -->
+  <circle cx="112" cy="75" r="5" fill="#FFFFFF"/>
+  <circle cx="128" cy="75" r="5" fill="#FFFFFF"/>
+  <circle cx="112" cy="75" r="3" fill="#000000"/>
+  <circle cx="128" cy="75" r="3" fill="#000000"/>
+  
+  <!-- Northern Rockhopper characteristic yellow eyebrows/crests -->
+  <path d="M 105 65 Q 112 60 120 65" stroke="url(#yellowGradient)" stroke-width="3" fill="none"/>
+  <path d="M 120 65 Q 128 60 135 65" stroke="url(#yellowGradient)" stroke-width="3" fill="none"/>
+  
+  <!-- Yellow eyebrow feathers (more detailed) -->
+  <path d="M 105 65 L 108 58 M 110 64 L 112 57 M 115 63 L 116 56" stroke="url(#yellowGradient)" stroke-width="2"/>
+  <path d="M 135 65 L 132 58 M 130 64 L 128 57 M 125 63 L 124 56" stroke="url(#yellowGradient)" stroke-width="2"/>
+  
+  <!-- Wings/flippers (black) -->
+  <ellipse cx="95" cy="135" rx="12" ry="25" fill="#2F2F2F" transform="rotate(-20 95 135)"/>
+  <ellipse cx="145" cy="135" rx="12" ry="25" fill="#2F2F2F" transform="rotate(20 145 135)"/>
+  
+  <!-- Feet (orange) -->
+  <ellipse cx="110" cy="185" rx="8" ry="4" fill="#FF8C00"/>
+  <ellipse cx="130" cy="185" rx="8" ry="4" fill="#FF8C00"/>
+  
+  <!-- Small webbed toe details -->
+  <path d="M 105 185 L 102 188 M 110 185 L 107 188 M 115 185 L 118 188" stroke="#FF8C00" stroke-width="1"/>
+  <path d="M 125 185 L 122 188 M 130 185 L 127 188 M 135 185 L 138 188" stroke="#FF8C00" stroke-width="1"/>
+</svg>

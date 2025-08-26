@@ -1,0 +1,15 @@
+## ✅ Completed Tasks:
+- ✅ Review the current code and create an initial CLAUDE.md with context
+- ✅ Correct github action workflows for building the Go Clients to include ARM/AMD 64 for linux, windows and a universal package for Mac
+- ✅ Update the docs in docs/ to be more comprehensive
+- ✅ Create a website/ folder and create a nodejs website which can be deployed to cloudflare pages
+- ✅ Add a fast waddler penguin ascii art to the top of the README.md
+- ✅ Replace the openspeedtest app with an expansion on the py4web website already built in
+- ✅ Update any python, including py4web, to utilize async and threading to improve performance
+- ✅ Update the go clients to have a system tray with continuous checks and manual test triggers
+- ✅ Update the go clients to be as performant and lightweight on resource consumption as possible
+- ✅ Create a RELEASE_NOTES.md file within /docs
+
+## 📋 Remaining TODOs:
+- Validate the python3 apps actually compile and run and are PEP8 compliant
+- Generate a SVG of a northern rockhopper penguin with yellow eyebrows with blur lines behind it in clip art format under the ascii picture in README.md

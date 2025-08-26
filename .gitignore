@@ -20,6 +20,8 @@
 */*.iso
 */*.jks
 */*.json
+!website/package.json
+!website/tsconfig.json
 */*.kdbx
 */*.keytab
 */*.log
@@ -56,3 +58,56 @@ client/web/apps/.service/*
 */*.bak
 */*.pyc
 client/web/apps/__pycache__/*.pyc
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+!website/package-lock.json
+yarn.lock
+.pnpm-debug.log
+.env
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.cache
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+*.manifest
+*.spec
+
+# Go
+bin/
+*.exe
+*.test
+*.out
+*.mod
+*.sum
+vendor/
+coverage.out
+
+# Next.js
+.next/
+.vercel/
+
+*.log

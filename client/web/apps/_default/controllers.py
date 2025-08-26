@@ -106,3 +106,70 @@ def resolver(domain: str = "google.com", record_type: str = "A", count:int = 3) 
     meanTime = rt.results["mean_time"] * 1000
     maxTime = rt.results["max_time"] * 1000
     return dict(domain=rt.domain, count=count, successful_count=rt.results["successful_count"], record_type=record_type, rawTimes=rt.results["times"], min_timeMS=minTime, mean_timeMS=meanTime, max_timeMS=maxTime)
+
+@action("speedtest")
+@action("speedtest/<server_url>")
+@action("speedtest/<server_url>/<duration:int>")
+@action("speedtest/<server_url>/<duration:int>/<connections:int>")
+@action.uses("generic.html", auth, T)
+def speedtest(server_url: str = None, duration: int = 10, connections: int = 4) -> dict:
+    """Run comprehensive network speed test"""
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '../../bins'))
+    
+    from speedtest import threaded_speedtest
+    
+    # Use environment variable or default server
+    if not server_url:
+        server_url = os.getenv('SPEEDTEST_SERVER', request.environ.get('HTTP_HOST', 'localhost:8080'))
+        if not server_url.startswith('http'):
+            server_url = f"http://{server_url}"
+    
+    try:
+        results = threaded_speedtest(server_url, duration, connections)
+        return dict(speedtest_results=results)
+    except Exception as e:
+        return dict(error=f"Unable to run speed test: {e}")
+
+# Server endpoints to support speedtest functionality
+@action("ping")
+def ping():
+    """Simple ping endpoint for latency testing"""
+    return "pong"
+
+@action("download")
+def download():
+    """Download endpoint that serves test data"""
+    import os
+    from py4web import response
+    
+    # Get requested size from query parameter
+    size = int(request.query.get('size', 1048576))  # Default 1MB
+    connection_id = request.query.get('connection', '0')
+    
+    # Generate test data (zeros for efficiency)
+    test_data = b'0' * size
+    
+    # Set appropriate headers
+    response.headers['Content-Type'] = 'application/octet-stream'
+    response.headers['Content-Length'] = str(len(test_data))
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Connection-ID'] = connection_id
+    
+    return test_data
+
+@action("upload", method="POST")
+def upload():
+    """Upload endpoint for upload speed testing"""
+    from py4web import response
+    
+    # Read the uploaded data
+    data_length = len(request.body) if hasattr(request, 'body') else 0
+    connection_id = request.query.get('connection', '0')
+    
+    # Return simple response
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Connection-ID'] = connection_id
+    
+    return {"status": "ok", "received_bytes": data_length, "connection": connection_id}
