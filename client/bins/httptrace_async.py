@@ -310,7 +310,7 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    log_file = "/var/log/httptrace_async.log" if os.name != 'nt' else "httptrace_async.log"
+    log_file = "httptrace_async.log"  # Use current directory for compatibility
     logging.basicConfig(
         level=logging.INFO, 
         format='%(asctime)s - %(levelname)s - %(message)s',
