@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/PenguinCloud/WaddlePerf/go-client/internal/network"
+	"github.com/penguintechinc/WaddlePerf/go-client/internal/network"
 	"github.com/getlantern/systray"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"

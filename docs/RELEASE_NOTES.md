@@ -236,7 +236,7 @@
 - 24/7 support for critical deployments
 
 ### Community Support
-- GitHub Issues: https://github.com/PenguinCloud/WaddlePerf/issues
+- GitHub Issues: https://github.com/penguintechinc/WaddlePerf/issues
 - Documentation: https://docs.waddleperf.io
 - Community Forum: https://community.waddleperf.io
 

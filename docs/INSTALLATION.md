@@ -53,7 +53,7 @@ brew install go python@3.11
 #### Using Docker Compose (Full Stack)
 ```bash
 # Clone the repository
-git clone https://github.com/PenguinCloud/WaddlePerf.git
+git clone https://github.com/penguintechinc/WaddlePerf.git
 cd WaddlePerf
 
 # Start all services
@@ -85,18 +85,18 @@ docker run -d \
 ### 2. Go Client Installation
 
 #### Pre-built Binaries
-Download from [GitHub Releases](https://github.com/PenguinCloud/WaddlePerf/releases):
+Download from [GitHub Releases](https://github.com/penguintechinc/WaddlePerf/releases):
 
 ##### Linux
 ```bash
 # AMD64
-wget https://github.com/PenguinCloud/WaddlePerf/releases/latest/download/waddleperf-linux-amd64.tar.gz
+wget https://github.com/penguintechinc/WaddlePerf/releases/latest/download/waddleperf-linux-amd64.tar.gz
 tar xzf waddleperf-linux-amd64.tar.gz
 sudo mv waddleperf /usr/local/bin/
 sudo chmod +x /usr/local/bin/waddleperf
 
 # ARM64
-wget https://github.com/PenguinCloud/WaddlePerf/releases/latest/download/waddleperf-linux-arm64.tar.gz
+wget https://github.com/penguintechinc/WaddlePerf/releases/latest/download/waddleperf-linux-arm64.tar.gz
 tar xzf waddleperf-linux-arm64.tar.gz
 sudo mv waddleperf /usr/local/bin/
 sudo chmod +x /usr/local/bin/waddleperf
@@ -104,7 +104,7 @@ sudo chmod +x /usr/local/bin/waddleperf
 
 ##### macOS (Universal Binary)
 ```bash
-wget https://github.com/PenguinCloud/WaddlePerf/releases/latest/download/waddleperf-macos-universal.tar.gz
+wget https://github.com/penguintechinc/WaddlePerf/releases/latest/download/waddleperf-macos-universal.tar.gz
 tar xzf waddleperf-macos-universal.tar.gz
 sudo mv waddleperf /usr/local/bin/
 sudo chmod +x /usr/local/bin/waddleperf
@@ -118,7 +118,7 @@ Download and extract the appropriate ZIP file:
 #### Building from Source
 ```bash
 # Clone repository
-git clone https://github.com/PenguinCloud/WaddlePerf.git
+git clone https://github.com/penguintechinc/WaddlePerf.git
 cd WaddlePerf/go-client
 
 # Install dependencies
@@ -138,12 +138,12 @@ sudo mv waddleperf /usr/local/bin/
 
 #### Linux/macOS
 ```bash
-curl -sSL https://raw.githubusercontent.com/PenguinCloud/WaddlePerf/main/client/thin-installers/debian-thininstall.sh | bash
+curl -sSL https://raw.githubusercontent.com/penguintechinc/WaddlePerf/main/client/thin-installers/debian-thininstall.sh | bash
 ```
 
 #### Windows (PowerShell as Administrator)
 ```powershell
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/PenguinCloud/WaddlePerf/main/client/thin-installers/windows-thininstall.ps -OutFile install.ps1
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/penguintechinc/WaddlePerf/main/client/thin-installers/windows-thininstall.ps -OutFile install.ps1
 ./install.ps1
 ```
 

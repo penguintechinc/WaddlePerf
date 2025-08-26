@@ -5,9 +5,9 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/PenguinCloud/WaddlePerf/go-client/internal/network"
-	"github.com/PenguinCloud/WaddlePerf/go-client/internal/system"
-	"github.com/PenguinCloud/WaddlePerf/go-client/internal/ui"
+	"github.com/penguintechinc/WaddlePerf/go-client/internal/network"
+	"github.com/penguintechinc/WaddlePerf/go-client/internal/system"
+	"github.com/penguintechinc/WaddlePerf/go-client/internal/ui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

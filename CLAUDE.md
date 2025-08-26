@@ -161,7 +161,7 @@ WaddlePerf uses a 3-tier testing system:
 
 ## Contact and Support
 - Organization: Penguin Technologies Inc.
-- Repository: https://github.com/PenguinCloud/WaddlePerf
+- Repository: https://github.com/penguintechinc/WaddlePerf
 - Issues: Report at GitHub Issues page
 
 Remember: Always complete tasks fully, test thoroughly, and never leave placeholders!
