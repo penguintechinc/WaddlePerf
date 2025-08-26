@@ -1,3 +1,15 @@
+```
+     ___     
+    (.  \    
+     \   |   ___   ___   _| | _| | | |  ___   ___    ___   _ _   ___ 
+      >  )  |Wad| |ddl| |dl| |dl| | | ||Per| |rfo|  |rma| |nce| |   |
+     /  /    \_/   \_/   \_/  \_/  |_/  \_/   \_/    \_/  \_\_\ |___|
+    /  /     Waddle fast, test faster! 🚀
+   (  (      Network Performance Testing at Penguin Speed
+    \ \_     
+     \__)    
+```
+
 # WaddlePerf
 
 This is a project to allow for complete testing of user experience from one system to another.
