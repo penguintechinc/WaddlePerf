@@ -20,6 +20,8 @@
 */*.iso
 */*.jks
 */*.json
+!website/package.json
+!website/tsconfig.json
 */*.kdbx
 */*.keytab
 */*.log
@@ -64,6 +66,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 package-lock.json
+!website/package-lock.json
 yarn.lock
 .pnpm-debug.log
 .env

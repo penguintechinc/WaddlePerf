@@ -1,0 +1,33 @@
+{
+  "name": "waddleperf-website",
+  "version": "1.0.0",
+  "description": "WaddlePerf - Network Performance Testing Platform Marketing Website",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^3.4.1",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.33",
+    "@heroicons/react": "^2.1.1",
+    "framer-motion": "^11.0.0",
+    "@types/react": "^18.2.48",
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^15.0.0"
+  }
+}
