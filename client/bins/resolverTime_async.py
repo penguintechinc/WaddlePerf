@@ -28,7 +28,7 @@ class DNSQueryResult:
 
 class AsyncResolverTime:
     """Async DNS resolver timing tool with performance improvements"""
-    
+
     def __init__(self):
         self.domain = "google.com"
         self.record_type = "A"
@@ -38,7 +38,7 @@ class AsyncResolverTime:
         self.dns_servers = None  # Use system default
         self.output_file = None
         self.results: List[DNSQueryResult] = []
-    
+
     def get_record_type_enum(self, record_type_str: str):
         """Convert string record type to dns.rdatatype enum"""
         record_types = {
@@ -53,35 +53,35 @@ class AsyncResolverTime:
             'SRV': dns.rdatatype.SRV
         }
         return record_types.get(record_type_str.upper(), dns.rdatatype.A)
-    
+
     async def query_dns_async(self, query_id: int) -> DNSQueryResult:
         """Perform single async DNS query"""
         start_time = time.perf_counter()
         timestamp = start_time
-        
+
         try:
             # Create async resolver
             resolver = dns.asyncresolver.Resolver()
             resolver.timeout = self.timeout
             resolver.lifetime = self.timeout
-            
+
             # Set custom DNS servers if specified
             if self.dns_servers:
                 resolver.nameservers = self.dns_servers
-            
+
             # Perform the query
             record_type_enum = self.get_record_type_enum(self.record_type)
-            
+
             try:
                 response = await resolver.resolve(self.domain, record_type_enum)
                 end_time = time.perf_counter()
                 query_time = (end_time - start_time) * 1000  # Convert to ms
-                
+
                 # Extract response data
                 response_data = []
                 for rdata in response:
                     response_data.append(str(rdata))
-                
+
                 return DNSQueryResult(
                     query_time_ms=query_time,
                     success=True,
@@ -89,7 +89,7 @@ class AsyncResolverTime:
                     server=str(response.nameserver) if hasattr(response, 'nameserver') else None,
                     timestamp=timestamp
                 )
-                
+
             except dns.resolver.NXDOMAIN:
                 end_time = time.perf_counter()
                 query_time = (end_time - start_time) * 1000
@@ -99,7 +99,7 @@ class AsyncResolverTime:
                     error="NXDOMAIN - Domain does not exist",
                     timestamp=timestamp
                 )
-                
+
             except dns.resolver.NoAnswer:
                 end_time = time.perf_counter()
                 query_time = (end_time - start_time) * 1000
@@ -109,7 +109,7 @@ class AsyncResolverTime:
                     error=f"No {self.record_type} record found",
                     timestamp=timestamp
                 )
-                
+
             except dns.resolver.Timeout:
                 return DNSQueryResult(
                     query_time_ms=self.timeout * 1000,
@@ -117,7 +117,7 @@ class AsyncResolverTime:
                     error="DNS query timeout",
                     timestamp=timestamp
                 )
-                
+
         except Exception as e:
             end_time = time.perf_counter()
             query_time = (end_time - start_time) * 1000
@@ -127,44 +127,44 @@ class AsyncResolverTime:
                 error=str(e),
                 timestamp=timestamp
             )
-    
+
     async def run_concurrent_queries(self) -> List[DNSQueryResult]:
         """Run DNS queries with controlled concurrency"""
         semaphore = asyncio.Semaphore(self.concurrent_queries)
-        
+
         async def semaphore_wrapper(query_id):
             async with semaphore:
                 return await self.query_dns_async(query_id)
-        
+
         logging.info(f"Running {self.count} DNS queries for {self.domain} "
-                    f"({self.record_type} record)")
-        
+                     f"({self.record_type} record)")
+
         # Create tasks
         tasks = [
             asyncio.create_task(semaphore_wrapper(i))
             for i in range(self.count)
         ]
-        
+
         # Execute with progress tracking
         results = []
         for i, task in enumerate(asyncio.as_completed(tasks), 1):
             result = await task
             results.append(result)
-            
+
             # Log individual result
             if result.success:
                 logging.debug(f"Query {i}: {result.query_time_ms:.2f}ms - "
-                            f"{len(result.response_data or [])} records")
+                              f"{len(result.response_data or [])} records")
             else:
                 logging.debug(f"Query {i}: Failed - {result.error}")
-        
+
         return results
-    
+
     def calculate_statistics(self, results: List[DNSQueryResult]) -> Dict:
         """Calculate comprehensive statistics"""
         successful_results = [r for r in results if r.success]
         failed_results = [r for r in results if not r.success]
-        
+
         stats = {
             'domain': self.domain,
             'record_type': self.record_type,
@@ -175,7 +175,7 @@ class AsyncResolverTime:
             'query_times': None,
             'errors': {}
         }
-        
+
         # Timing statistics
         if successful_results:
             times = [r.query_time_ms for r in successful_results]
@@ -187,7 +187,7 @@ class AsyncResolverTime:
                 'std_dev_ms': statistics.stdev(times) if len(times) > 1 else 0,
                 'all_times': times
             }
-            
+
             # Add percentiles for larger samples
             if len(times) >= 10:
                 sorted_times = sorted(times)
@@ -196,7 +196,7 @@ class AsyncResolverTime:
                     'p95': sorted_times[int(len(sorted_times) * 0.95)],
                     'p99': sorted_times[int(len(sorted_times) * 0.99)]
                 }
-        
+
         # Error analysis
         if failed_results:
             error_counts = {}
@@ -204,7 +204,7 @@ class AsyncResolverTime:
                 error = result.error or "Unknown error"
                 error_counts[error] = error_counts.get(error, 0) + 1
             stats['errors'] = error_counts
-        
+
         # Response data analysis
         if successful_results and successful_results[0].response_data:
             unique_responses = set()
@@ -213,14 +213,14 @@ class AsyncResolverTime:
                     for response in result.response_data:
                         unique_responses.add(response)
             stats['unique_responses'] = list(unique_responses)
-        
+
         return stats
-    
+
     def save_results_to_file(self, results: List[DNSQueryResult], stats: Dict):
         """Save detailed results to JSON file"""
         if not self.output_file:
             return
-        
+
         output_data = {
             'test_config': {
                 'domain': self.domain,
@@ -243,14 +243,14 @@ class AsyncResolverTime:
                 for r in results
             ]
         }
-        
+
         try:
             with open(self.output_file, 'w') as f:
                 json.dump(output_data, f, indent=2, default=str)
             logging.info(f"Results saved to {self.output_file}")
         except Exception as e:
             logging.error(f"Failed to save results: {e}")
-    
+
     def print_summary(self, stats: Dict):
         """Print human-readable summary"""
         print(f"\n🔍 DNS Resolution Results for {stats['domain']} ({stats['record_type']} record)")
@@ -259,62 +259,62 @@ class AsyncResolverTime:
         print(f"Successful: {stats['successful_queries']}")
         print(f"Failed: {stats['failed_queries']}")
         print(f"Success Rate: {stats['success_rate_percent']:.1f}%")
-        
+
         if stats['query_times']:
             qt = stats['query_times']
             print(f"\n⏱️  Response Times:")
             print(f"  Min: {qt['min_ms']:.2f}ms")
-            print(f"  Max: {qt['max_ms']:.2f}ms") 
+            print(f"  Max: {qt['max_ms']:.2f}ms")
             print(f"  Mean: {qt['mean_ms']:.2f}ms")
             print(f"  Median: {qt['median_ms']:.2f}ms")
             print(f"  Std Dev: {qt['std_dev_ms']:.2f}ms")
-            
+
             if 'percentiles' in qt:
                 p = qt['percentiles']
                 print(f"  90th percentile: {p['p90']:.2f}ms")
                 print(f"  95th percentile: {p['p95']:.2f}ms")
                 print(f"  99th percentile: {p['p99']:.2f}ms")
-        
+
         if stats.get('unique_responses'):
             print(f"\n📋 Resolved Addresses:")
             for response in stats['unique_responses'][:10]:  # Show first 10
                 print(f"  {response}")
             if len(stats['unique_responses']) > 10:
                 print(f"  ... and {len(stats['unique_responses']) - 10} more")
-        
+
         if stats.get('errors'):
             print(f"\n❌ Errors:")
             for error, count in stats['errors'].items():
                 print(f"  {error}: {count}")
-    
+
     async def run_async(self):
         """Main async execution method"""
         try:
             # Run the DNS queries
             self.results = await self.run_concurrent_queries()
-            
+
             # Calculate statistics
             stats = self.calculate_statistics(self.results)
-            
+
             # Display results
             self.print_summary(stats)
-            
+
             # Save to file if requested
             self.save_results_to_file(self.results, stats)
-            
+
             return stats
-            
+
         except Exception as e:
             logging.error(f"DNS resolution test failed: {e}")
             raise
-    
+
     def run(self):
         """Synchronous wrapper for async execution"""
         return asyncio.run(self.run_async())
 
 
 def run_threaded_dns_test(domain: str, record_type: str = "A", count: int = 3,
-                         concurrent: int = 5, timeout: float = 5.0) -> Dict:
+                          concurrent: int = 5, timeout: float = 5.0) -> Dict:
     """Thread-safe wrapper for async DNS resolution testing"""
     resolver = AsyncResolverTime()
     resolver.domain = domain
@@ -322,7 +322,7 @@ def run_threaded_dns_test(domain: str, record_type: str = "A", count: int = 3,
     resolver.count = count
     resolver.concurrent_queries = concurrent
     resolver.timeout = timeout
-    
+
     return resolver.run()
 
 
@@ -337,19 +337,19 @@ def main():
     dns_servers = None
     output_file = None
     log_level = logging.INFO
-    
+
     try:
         opts, args = getopt.getopt(
             sys.argv[1:],
             "d:r:c:t:s:o:l:C:h",
-            ["domain=", "record-type=", "count=", "timeout=", "servers=", 
+            ["domain=", "record-type=", "count=", "timeout=", "servers=",
              "output=", "loglevel=", "concurrent=", "help"]
         )
     except getopt.GetoptError as err:
         print(f"Error: {err}")
         print("Usage: resolverTime_async.py -d <domain> [options]")
         sys.exit(2)
-    
+
     for opt, arg in opts:
         if opt in ("-d", "--domain"):
             domain = arg
@@ -381,24 +381,24 @@ def main():
             print("  -l, --loglevel    Log level (DEBUG, INFO, WARNING, ERROR)")
             print("  -h, --help        Show this help")
             sys.exit(0)
-    
+
     # Validate inputs
     if not domain:
         print("Error: Domain is required (-d option)")
         sys.exit(2)
-    
+
     valid_types = ['A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT', 'SOA', 'PTR', 'SRV']
     if record_type not in valid_types:
         print(f"Error: Invalid record type. Valid types: {', '.join(valid_types)}")
         sys.exit(2)
-    
+
     # Set up logging
     logging.basicConfig(
         level=log_level,
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[logging.StreamHandler(sys.stdout)]
     )
-    
+
     # Create and run resolver
     resolver = AsyncResolverTime()
     resolver.domain = domain
@@ -408,7 +408,7 @@ def main():
     resolver.timeout = timeout
     resolver.dns_servers = dns_servers
     resolver.output_file = output_file
-    
+
     try:
         resolver.run()
     except KeyboardInterrupt:
