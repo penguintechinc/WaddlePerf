@@ -5,14 +5,13 @@ import time
 import string
 import random
 import signal
-import os
 import getopt
 import json
 import logging
 import base64
 import socket
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
@@ -236,7 +235,7 @@ class AsyncUDPPing:
 
     def print_summary(self, stats: Dict):
         """Print human-readable summary"""
-        print(f"\n--- UDP ping statistics ---")
+        print("\n--- UDP ping statistics ---")
         print(f"{stats['packets_transmitted']} packets transmitted, "
               f"{stats['packets_received']} received, "
               f"{stats['packet_loss_percent']:.1f}% packet loss")

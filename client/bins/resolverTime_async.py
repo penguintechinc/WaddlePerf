@@ -7,8 +7,7 @@ import logging
 import json
 import sys
 import getopt
-from typing import List, Dict, Optional, Tuple
-from concurrent.futures import ThreadPoolExecutor
+from typing import List, Dict, Optional
 import dns.resolver
 import dns.asyncresolver
 import dns.rdatatype
@@ -171,7 +170,9 @@ class AsyncResolverTime:
             'total_queries': len(results),
             'successful_queries': len(successful_results),
             'failed_queries': len(failed_results),
-            'success_rate_percent': (len(successful_results) / len(results)) * 100 if results else 0,
+            'success_rate_percent': (
+                (len(successful_results) / len(results)) * 100
+                if results else 0),
             'query_times': None,
             'errors': {}
         }
@@ -262,7 +263,7 @@ class AsyncResolverTime:
 
         if stats['query_times']:
             qt = stats['query_times']
-            print(f"\n⏱️  Response Times:")
+            print("\n⏱️  Response Times:")
             print(f"  Min: {qt['min_ms']:.2f}ms")
             print(f"  Max: {qt['max_ms']:.2f}ms")
             print(f"  Mean: {qt['mean_ms']:.2f}ms")
@@ -276,14 +277,14 @@ class AsyncResolverTime:
                 print(f"  99th percentile: {p['p99']:.2f}ms")
 
         if stats.get('unique_responses'):
-            print(f"\n📋 Resolved Addresses:")
+            print("\n📋 Resolved Addresses:")
             for response in stats['unique_responses'][:10]:  # Show first 10
                 print(f"  {response}")
             if len(stats['unique_responses']) > 10:
                 print(f"  ... and {len(stats['unique_responses']) - 10} more")
 
         if stats.get('errors'):
-            print(f"\n❌ Errors:")
+            print("\n❌ Errors:")
             for error, count in stats['errors'].items():
                 print(f"  {error}: {count}")
 

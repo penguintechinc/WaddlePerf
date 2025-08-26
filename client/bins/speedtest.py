@@ -4,7 +4,7 @@ import time
 import json
 import asyncio
 import aiohttp
-import threading
+import threading  # noqa: F401 - used for thread-safe event loop execution
 import os
 import socket
 from typing import Dict, List

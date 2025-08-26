@@ -7,7 +7,6 @@ import sys
 import getopt
 import statistics
 import logging
-import os
 import ssl
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
@@ -113,12 +112,14 @@ class AsyncHttpTrace:
                     result['time_namelookup'] = timing_data['dns_end'] - timing_data['dns_start']
 
                 if 'connect_start' in timing_data and 'connect_end' in timing_data:
-                    result['time_connect'] = (timing_data['connect_end'] -
-                                          timing_data['connect_start'])
+                    result['time_connect'] = (
+                        timing_data['connect_end'] -
+                        timing_data['connect_start'])
 
                 if 'request_start' in timing_data and 'request_end' in timing_data:
-                    result['time_transfer'] = (timing_data['request_end'] -
-                                           timing_data['request_start'])
+                    result['time_transfer'] = (
+                        timing_data['request_end'] -
+                        timing_data['request_start'])
 
                 # Response headers info
                 result['headers'] = dict(response.headers)
@@ -224,8 +225,10 @@ class AsyncHttpTrace:
 
             # Output results
             summary_json = json.dumps(self.results, indent=2, default=str)
+            summary_data = self.results.get('summary', {})
             logging.info(
-                f"HTTP Trace Results Summary:\n{json.dumps(self.results.get('summary', {}), indent=2)}")
+                f"HTTP Trace Results Summary:\n"
+                f"{json.dumps(summary_data, indent=2)}")
 
             if self.output_file:
                 with open(self.output_file, 'w') as f:
@@ -312,14 +315,15 @@ def main(argv):
     # Print summary to stdout
     if http_trace.results and 'summary' in http_trace.results:
         summary = http_trace.results['summary']
-        print(f"\n🚀 HTTP Trace Test Results:")
+        print("\n🚀 HTTP Trace Test Results:")
         print(f"URL: {url}")
         print(f"Successful: {summary.get('successful_requests', 0)}/{tries}")
         if 'mean_time' in summary:
-            print(f"Average Response Time: "
-              f"{summary['mean_time']*1000:.2f}ms")
-            print(f"Min/Max: {summary['min_time']*1000:.2f}ms / "
-                  f"{summary['max_time']*1000:.2f}ms")
+            mean_time_ms = summary['mean_time'] * 1000
+            min_time_ms = summary['min_time'] * 1000
+            max_time_ms = summary['max_time'] * 1000
+            print(f"Average Response Time: {mean_time_ms:.2f}ms")
+            print(f"Min/Max: {min_time_ms:.2f}ms / {max_time_ms:.2f}ms")
 
 
 if __name__ == "__main__":

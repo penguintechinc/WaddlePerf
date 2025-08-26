@@ -10,6 +10,10 @@
      \__)    
 ```
 
+<div align="center">
+  <img src="waddleperf-penguin.svg" alt="WaddlePerf Northern Rockhopper Penguin Mascot" width="200" height="200">
+</div>
+
 # WaddlePerf
 
 This is a project to allow for complete testing of user experience from one system to another.
