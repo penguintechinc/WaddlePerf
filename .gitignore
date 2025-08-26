@@ -105,6 +105,7 @@ bin/
 *.sum
 vendor/
 coverage.out
+go-client/test-dist/
 
 # Next.js
 .next/
