@@ -103,4 +103,8 @@ bin/
 vendor/
 coverage.out
 
+# Next.js
+.next/
+.vercel/
+
 *.log
