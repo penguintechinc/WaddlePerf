@@ -1,0 +1,8 @@
+# Cloudflare Pages configuration
+name = "waddleperf"
+compatibility_date = "2023-12-07"
+
+[build]
+command = "cd website && npm install && npm run build"
+cwd = "website"
+publish = "website/out"
