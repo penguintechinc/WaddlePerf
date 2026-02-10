@@ -6,9 +6,9 @@ from functools import wraps
 from datetime import datetime, timedelta
 from sqlalchemy import func, case
 from models import db, DeviceEnrollment, OrganizationUnit, OUEnrollmentSecret, User, Session
-import logging
+from penguintechinc_utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 devices_bp = Blueprint('devices', __name__)
 
 

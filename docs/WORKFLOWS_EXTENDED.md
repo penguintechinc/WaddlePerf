@@ -186,18 +186,6 @@ on:
       - '.github/workflows/build-testserver.yml'
 ```
 
-### Shared Code Path Filters
-
-If services share code (e.g., in `shared/` directory):
-
-```yaml
-paths:
-  - 'testserver/**'
-  - 'shared/**'                  # Add if shared code is used
-  - '.version'
-  - '.github/workflows/build-testserver.yml'
-```
-
 ---
 
 ## Security Scanning

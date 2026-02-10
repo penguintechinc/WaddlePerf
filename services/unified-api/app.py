@@ -5,6 +5,7 @@ from typing import Optional
 from quart import Quart, jsonify, current_app
 from quart_cors import cors
 from pydal import DAL
+from penguintechinc_utils.logging import get_logger
 
 from config import Config
 from database.schema import initialize_schema
@@ -12,7 +13,7 @@ from database.connection import get_dal, close_dal
 from routes import auth_bp, organizations_bp, devices_bp
 from services.auth_service import AuthService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_app(config_obj: Optional[Config] = None) -> Quart:

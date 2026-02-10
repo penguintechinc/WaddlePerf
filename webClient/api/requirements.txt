@@ -26,3 +26,8 @@ gunicorn==23.0.0
 
 # Utilities
 python-dotenv==1.0.1
+
+# PenguinTech shared libraries
+penguin-libs[flask,http]>=0.1.0
+penguin-licensing>=0.1.0
+penguintechinc-utils>=0.1.0

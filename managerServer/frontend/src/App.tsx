@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AppConsoleVersion } from '@penguintechinc/react-libs';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <AppConsoleVersion webuiVersion="4.0.0" apiStatusUrl="/health" />
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />

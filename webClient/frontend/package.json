@@ -17,7 +17,8 @@
     "socket.io-client": "^4.8.1",
     "recharts": "^2.15.0",
     "axios": "^1.7.9",
-    "react-router-dom": "^7.1.1"
+    "react-router-dom": "^7.1.1",
+    "@penguintechinc/react-libs": "^1.1.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",

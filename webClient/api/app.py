@@ -18,13 +18,14 @@ import pymysql
 from pymysql.cursors import DictCursor
 import bcrypt
 import jwt
+from penguintechinc_utils.logging import get_logger
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)

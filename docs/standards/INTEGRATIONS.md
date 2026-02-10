@@ -305,14 +305,14 @@ class WaddleAIClient:
 
 # Flask integration
 from flask import Flask, request, jsonify
-from shared.licensing import requires_feature
+from penguin_licensing.decorators import feature_required
 
 app = Flask(__name__)
 ai_client = WaddleAIClient()
 
 @app.route('/api/v1/ai/analyze', methods=['POST'])
 @auth_required()
-@requires_feature('ai_analysis')  # License-gate AI features
+@feature_required('ai_analysis')  # License-gate AI features
 async def ai_analyze():
     """AI-powered analysis - enterprise feature"""
     data = request.get_json()
@@ -362,10 +362,11 @@ AI_FEATURES = {
 }
 
 # Check what's available
-from shared.licensing import license_client
+from penguin_licensing.client import get_license_client
 
 def check_ai_features():
     """Check available AI features based on license"""
+    license_client = get_license_client()
     features = {}
     for feature, required_tier in AI_FEATURES.items():
         features[feature] = license_client.has_feature(feature)
