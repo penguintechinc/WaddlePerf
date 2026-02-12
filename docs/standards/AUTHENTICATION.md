@@ -318,16 +318,15 @@ SSO lets users login with their company account (Google, Azure, SAML). It's **li
 ### Configuration
 
 ```python
-from penguin_licensing.decorators import feature_required
-from penguin_licensing.client import get_license_client
+from shared.licensing import requires_feature
 
 # SAML SSO (enterprise only)
-if get_license_client().has_feature('sso_saml'):
+if license_client.has_feature('sso_saml'):
     app.config['SECURITY_SAML_ENABLED'] = True
     app.config['SECURITY_SAML_IDP_METADATA_URL'] = os.getenv('SAML_IDP_METADATA_URL')
 
 # OAuth SSO (enterprise only)
-if get_license_client().has_feature('sso_oauth'):
+if license_client.has_feature('sso_oauth'):
     app.config['SECURITY_OAUTH_ENABLED'] = True
     app.config['SECURITY_OAUTH_PROVIDERS'] = {
         'google': {
@@ -342,13 +341,13 @@ if get_license_client().has_feature('sso_oauth'):
 
 # Protected SSO endpoints
 @app.route('/auth/saml/login')
-@feature_required('sso_saml')
+@requires_feature('sso_saml')
 def saml_login():
     """SAML login (enterprise feature only)"""
     pass
 
 @app.route('/auth/oauth/login')
-@feature_required('sso_oauth')
+@requires_feature('sso_oauth')
 def oauth_login():
     """OAuth login (enterprise feature only)"""
     pass
