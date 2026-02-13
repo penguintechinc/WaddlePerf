@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unified-api
+  labels:
+    app: unified-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unified-api
+  template:
+    metadata:
+      labels:
+        app: unified-api
+    spec:
+      containers:
+        - name: unified-api
+          image: registry-dal2.penguintech.io/waddleperf/unified-api:latest
+          ports:
+            - containerPort: 5000

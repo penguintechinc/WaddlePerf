@@ -1,0 +1,16 @@
+# Beta environment overrides (dal2 cluster)
+namespace: waddleperf-beta
+replicaCount: 2
+image:
+  registry: registry-dal2.penguintech.io
+  pullPolicy: Always
+env:
+  LOG_LEVEL: INFO
+  RELEASE_MODE: "false"
+ingress:
+  hosts:
+    - host: waddleperf.penguintech.io
+  tls:
+    - secretName: penguintech-wildcard-tls
+      hosts:
+        - waddleperf.penguintech.io
