@@ -6,3 +6,6 @@ image:
 env:
   LOG_LEVEL: DEBUG
   RELEASE_MODE: "false"
+ingress:
+  hosts:
+    - host: waddleperf.localhost.local
