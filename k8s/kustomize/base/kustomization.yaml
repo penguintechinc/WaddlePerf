@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../manifests/namespace.yaml
+  - ../../manifests/testserver/deployment.yaml
+  - ../../manifests/testserver/service.yaml
+  - ../../manifests/unified-api/deployment.yaml
+  - ../../manifests/unified-api/service.yaml
+  - ../../manifests/webui/deployment.yaml
+  - ../../manifests/webui/service.yaml
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: waddleperf

@@ -3,7 +3,10 @@ from quart import Blueprint, request, jsonify, current_app
 from functools import wraps
 import jwt
 from typing import Optional, Tuple
+from penguin_libs.validation import IsStrongPassword
 from services.auth_service import AuthService
+
+_password_validator = IsStrongPassword(min_length=8)
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/v1/auth')
 
@@ -233,10 +236,9 @@ async def reset_password():
         if not token or not new_password:
             return jsonify({'error': 'Token and new_password required'}), 400
 
-        if len(new_password) < 8:
-            return jsonify({
-                'error': 'Password must be at least 8 characters'
-            }), 400
+        password_result = _password_validator(new_password)
+        if not password_result.is_valid:
+            return jsonify({'error': password_result.error}), 400
 
         auth_service = _get_auth_service()
         result = await auth_service.reset_password(token, new_password)
@@ -279,10 +281,9 @@ async def change_password(user_id: int):
                 'error': 'Current and new passwords required'
             }), 400
 
-        if len(new_password) < 8:
-            return jsonify({
-                'error': 'Password must be at least 8 characters'
-            }), 400
+        password_result = _password_validator(new_password)
+        if not password_result.is_valid:
+            return jsonify({'error': password_result.error}), 400
 
         auth_service = _get_auth_service()
         result = await auth_service.change_password(

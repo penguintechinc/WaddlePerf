@@ -18,6 +18,7 @@ from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, asdict
 import aiohttp
+from penguintechinc_utils.logging import get_logger
 
 from tests import (
     HttpTest, HttpTestResult,
@@ -75,7 +76,7 @@ class WaddlePerfClient:
     def __init__(self, config: ClientConfig):
         self.config = config
         self.device_info = self._detect_device_info()
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         self.session: Optional[aiohttp.ClientSession] = None
         self._token_lock = asyncio.Lock()  # Protect token updates
 

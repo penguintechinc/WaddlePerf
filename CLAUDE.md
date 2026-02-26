@@ -7,8 +7,7 @@
 - ❌ **NEVER edit** `CLAUDE.md`, `.claude/*.md`, `docs/STANDARDS.md`, or `docs/standards/*.md`
 - ✅ **CREATE NEW FILES** for app-specific context:
   - `docs/APP_STANDARDS.md` - App-specific architecture, requirements, context
-  - `.claude/app.md` - App-specific rules for Claude (create if needed)
-  - `.claude/[feature].md` - Feature-specific context (create as needed)
+  - `.claude/{subject}.local.md` - Project-specific overrides (e.g., `architecture.local.md`, `python.local.md`)
 
 **App-Specific Addendums to Standardized Files:**
 
@@ -47,6 +46,8 @@ This repository may contain `.local.md` variant files that provide project-speci
 - **NEVER commit** unless explicitly requested
 - **NEVER push** to remote repositories - only push when explicitly asked
 - **NEVER ask about pushing** - do not suggest or prompt for git push operations
+- **NEVER edit code directly on `main`** — always work on a feature branch
+- **CHECK current branch before any code change**: if on `main`, create and switch to a feature branch first (`git checkout -b feature/<name>`)
 - Run security scans before commit
 
 **Code Quality:**
@@ -54,9 +55,21 @@ This repository may contain `.local.md` variant files that provide project-speci
 - No hardcoded secrets or credentials
 - Input validation mandatory
 
+**Tool Usage:**
+- **NEVER use `sed`, `awk`, `cat`, `head`, `tail`, `echo`, `grep`, `find`, or `rg` via Bash** when a dedicated tool exists — use the dedicated tools instead:
+  - Read files → **Read** tool (not `cat`, `head`, `tail`)
+  - Edit files → **Edit** tool (not `sed`, `awk`)
+  - Write/create files → **Write** tool (not `echo >`, `cat <<EOF`)
+  - Search file contents → **Grep** tool (not `grep`, `rg`)
+  - Find files by name → **Glob** tool (not `find`, `ls`)
+- Only fall back to Bash for these commands when the dedicated tool genuinely cannot accomplish the task (e.g., piped shell pipelines, complex transformations)
+- This reduces unnecessary approval prompts and keeps operations auditable
+
 📚 **Complete Technical Standards**: See [`.claude/`](.claude/) directory for all language-specific, database, architecture, container image, Kubernetes, and development standards.
 
 📚 **Orchestration Model Rules**: See [`.claude/orchestration.md`](.claude/orchestration.md) for complete orchestration details — main model role (planning, delegating, validating), task agent model selection (Haiku vs Sonnet), output requirements, and concurrency limits.
+
+📚 **Testing Standards**: See [`.claude/testing.md`](.claude/testing.md) for complete testing framework — Test Controller CLI, test categories (build, unit, integration, functional, e2e, security, api, performance), smoke test designations, per-container requirements, and test execution order.
 
 ---
 
@@ -191,11 +204,14 @@ make docker-push              # Push to registry
 make deploy-dev               # Deploy to development
 make deploy-prod              # Deploy to production
 
-# Testing
+# Testing (see .claude/testing.md for full framework)
+./scripts/test-controller.sh <type> [container]  # Unified test entry point
 make test-unit               # Run unit tests
 make test-integration        # Run integration tests
 make test-e2e                # Run end-to-end tests
-make smoke-test              # Run smoke tests (build, run, API, page loads)
+make test-functional         # Run functional tests (APIs, pages, tabs, modals, buttons)
+make test-security           # Run security tests (gosec, bandit, npm audit, trivy)
+make smoke-test              # Run smoke tests (curated subset, <2 min, pre-commit)
 
 # License Management
 make license-validate        # Validate license
@@ -223,7 +239,6 @@ make license-check-features  # Check available features
 - **Keep focused**: Critical context, architectural decisions, and workflow instructions only
 - **User approval required**: ALWAYS ask user permission before splitting CLAUDE.md files
 - **Use Task Agents**: Utilize task agents (subagents) to be more expedient and efficient when making changes to large files, updating or reviewing multiple files, or performing complex multi-step operations
-- **Avoid sed/cat**: Use sed and cat commands only when necessary; prefer dedicated Read/Edit/Write tools for file operations
 
 📚 **Task Agent Orchestration**: See [`.claude/orchestration.md`](.claude/orchestration.md) for complete details on orchestration model, task agent selection, response requirements, and concurrency limits.
 
@@ -266,8 +281,10 @@ Comprehensive development standards are organized by category in `docs/standards
 **Version**: `.version` file in root, semver format, monitored by all workflows
 
 **Deployment Hosts**:
-- **Beta/Development**: `https://{repo_name_lowercase}.penguintech.io` (if online)
-  - Example: `project-template` → `https://project-template.penguintech.io`
+- **Alpha/Local**: `https://{repo_name_lowercase}.localhost.local` (local K8s)
+  - Deployed via Kustomize to `--context local-alpha`
+- **Beta/Development**: `https://{repo_name_lowercase}.penguintech.cloud` (if online)
+  - Example: `project-template` → `https://project-template.penguintech.cloud`
   - Deployed from `main` branch with `beta-*` tags
 - **Production**: Either custom domain or PenguinCloud subdomain
   - **Custom Domain**: Application-specific (e.g., `https://waddlebot.io`)

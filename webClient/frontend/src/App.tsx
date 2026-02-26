@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { AppConsoleVersion } from '@penguintechinc/react-libs'
 import Login from './components/Login'
 import TestRunner from './components/TestRunner'
 import { checkAuthStatus } from './services/api'
@@ -66,6 +67,7 @@ function App() {
 
   return (
     <Router>
+      <AppConsoleVersion webuiVersion="1.0.0" apiStatusUrl="/health" />
       <div className="app">
         <Routes>
           <Route
