@@ -3,7 +3,8 @@ name: Build and Release goClient
 on:
   push:
     branches:
-      - '**'
+      - 'main'
+      - 'v*'
     paths:
       - 'goClient/**'
       - '.github/workflows/release-goclient.yml'
@@ -51,11 +52,16 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           BINARY_SUFFIX="-${VERSION}"
           CONTAINER_TAGS="${VERSION}"
-        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          # Main branch: beta
+        elif [[ "${{ github.ref }}" == refs/heads/v* ]]; then
+          # Release branch: beta
           VERSION="beta"
           BINARY_SUFFIX="-beta"
           CONTAINER_TAGS="beta"
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          # Main branch: gamma
+          VERSION="gamma"
+          BINARY_SUFFIX="-gamma"
+          CONTAINER_TAGS="gamma"
         else
           # Other branches: prototype
           VERSION="prototype-${GITHUB_SHA::8}"

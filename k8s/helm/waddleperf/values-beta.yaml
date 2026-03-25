@@ -1,9 +1,11 @@
 # Beta environment overrides (dal2 cluster)
-namespace: waddleperf-beta
+namespace: waddleperf
 replicaCount: 2
 image:
-  registry: registry-dal2.penguintech.io
+  registry: ghcr.io/penguintechinc/waddleperf
   pullPolicy: Always
+imagePullSecrets:
+  - name: ghcr-pull-secret
 env:
   LOG_LEVEL: INFO
   RELEASE_MODE: "false"

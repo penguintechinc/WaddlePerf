@@ -1,5 +1,5 @@
 # Alpha environment overrides (local MicroK8s)
-namespace: waddleperf-alpha
+namespace: waddleperf
 replicaCount: 1
 image:
   pullPolicy: Never
