@@ -340,7 +340,7 @@ func TestTCPTrace(req TCPTraceRequest) (*TraceResult, error) {
 	if len(ips) == 0 {
 		result.Success = false
 		result.Error = "No IP addresses found for target"
-		return result, fmt.Errorf(result.Error)
+		return result, fmt.Errorf("%s", result.Error)
 	}
 
 	targetIP := ips[0].String()
@@ -520,7 +520,7 @@ func TestUDPTrace(req UDPTraceRequest) (*TraceResult, error) {
 	if len(ips) == 0 {
 		result.Success = false
 		result.Error = "No IP addresses found for target"
-		return result, fmt.Errorf(result.Error)
+		return result, fmt.Errorf("%s", result.Error)
 	}
 
 	// Run traceroute in UDP mode (default mode for traceroute)

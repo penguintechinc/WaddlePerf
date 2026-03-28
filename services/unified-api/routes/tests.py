@@ -36,7 +36,7 @@ async def list_tests() -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Missing required query parameter: org_id'}, 400
 
     service = TestService(current_app.db)
-    results = service.list_tests(
+    results = await service.list_tests(
         org_id=org_id,
         device_id=device_id,
         test_type=test_type,
@@ -61,7 +61,7 @@ async def get_test(test_id: int) -> Tuple[Dict[str, Any], int]:
         JSON response with test result details
     """
     service = TestService(current_app.db)
-    test_result = service.get_test(test_id)
+    test_result = await service.get_test(test_id)
 
     if not test_result:
         return {'status': 'error', 'message': 'Test result not found'}, 404
@@ -103,7 +103,7 @@ async def create_test() -> Tuple[Dict[str, Any], int]:
             return {'status': 'error', 'message': f'Missing required field: {field}'}, 400
 
     service = TestService(current_app.db)
-    test_result = service.create_test(data)
+    test_result = await service.create_test(data)
 
     if not test_result:
         return {'status': 'error', 'message': 'Failed to create test result'}, 400
@@ -122,7 +122,7 @@ async def delete_test(test_id: int) -> Tuple[Dict[str, Any], int]:
         JSON response
     """
     service = TestService(current_app.db)
-    success = service.delete_test(test_id)
+    success = await service.delete_test(test_id)
 
     if not success:
         return {'status': 'error', 'message': 'Test result not found'}, 404

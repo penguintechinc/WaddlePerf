@@ -28,28 +28,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524f513eded29f8b3e8a9e93b5d5e99e75e  # v5
         with:
           python-version: '3.13'
 
       - name: Install dependencies
         run: |
           cd containerClient
-          pip install -r requirements.txt
+          pip3 install -r requirements.txt
+
+      - name: Install test dependencies
+        run: pip3 install pytest pytest-asyncio pytest-cov aioresponses
 
       - name: Run syntax check
         run: |
           cd containerClient
-          python -m py_compile client.py
-          python -m py_compile tests/*.py
+          python3 -m py_compile client.py
+          python3 -m py_compile tests/*.py
 
       - name: Test import
         run: |
           cd containerClient
-          python -c "from tests import HttpTest, TcpTest, UdpTest, IcmpTest; print('All imports successful')"
+          python3 -c "from tests import HttpTest, TcpTest, UdpTest, IcmpTest; print('All imports successful')"
+
+      - name: Run unit tests with coverage
+        run: |
+          cd containerClient
+          python3 -m pytest --cov --cov-report=xml --cov-fail-under=90 -q
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457  # v4
+        with:
+          file: containerClient/coverage.xml
+          flags: containerclient
 
   build:
     name: Build and push Docker image
@@ -61,7 +75,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

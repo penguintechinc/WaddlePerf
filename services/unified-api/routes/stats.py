@@ -32,7 +32,7 @@ async def get_summary() -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Missing required query parameter: org_id'}, 400
 
     service = StatsService(current_app.db)
-    summary = service.get_summary(org_id=org_id, start_date=start_date, end_date=end_date)
+    summary = await service.get_summary(org_id=org_id, start_date=start_date, end_date=end_date)
 
     return {'status': 'success', 'data': summary}, 200
 
@@ -65,7 +65,9 @@ async def get_by_device() -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Missing required query parameter: org_id'}, 400
 
     service = StatsService(current_app.db)
-    stats = service.get_by_device(org_id=org_id, start_date=start_date, end_date=end_date, limit=limit)
+    stats = await service.get_by_device(
+        org_id=org_id, start_date=start_date, end_date=end_date, limit=limit
+    )
 
     return {'status': 'success', 'data': stats}, 200
 
@@ -97,7 +99,9 @@ async def get_by_type() -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Missing required query parameter: org_id'}, 400
 
     service = StatsService(current_app.db)
-    stats = service.get_by_type(org_id=org_id, start_date=start_date, end_date=end_date, limit=limit)
+    stats = await service.get_by_type(
+        org_id=org_id, start_date=start_date, end_date=end_date, limit=limit
+    )
 
     return {'status': 'success', 'data': stats}, 200
 
@@ -136,7 +140,7 @@ async def get_trends() -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Invalid metric. Must be success_rate, avg_duration, or count'}, 400
 
     service = StatsService(current_app.db)
-    trends = service.get_trends(
+    trends = await service.get_trends(
         org_id=org_id,
         start_date=start_date,
         end_date=end_date,
@@ -170,6 +174,6 @@ async def get_recent() -> Tuple[Dict[str, Any], int]:
         limit = 100
 
     service = StatsService(current_app.db)
-    recent = service.get_recent(org_id=org_id, device_id=device_id, limit=limit)
+    recent = await service.get_recent(org_id=org_id, device_id=device_id, limit=limit)
 
     return {'status': 'success', 'data': recent}, 200

@@ -2,7 +2,7 @@
 # Multi-arch support: linux/amd64, linux/arm64
 # Python 3.12 Debian-based
 
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim-bookworm@sha256:01f42367a0a94ad4bc17111776fd66e3500c1d87c15bbd6055b7371d39c124fb AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,7 +17,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 
-FROM python:3.12-slim
+FROM python:3.13-slim-bookworm@sha256:01f42367a0a94ad4bc17111776fd66e3500c1d87c15bbd6055b7371d39c124fb
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

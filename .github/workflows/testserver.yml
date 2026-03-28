@@ -26,19 +26,26 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b  # v5
         with:
           go-version: '1.23'
           cache-dependency-path: testServer/go.sum
 
-      - name: Run tests
-        working-directory: testServer
+      - name: Run Go tests with coverage
         run: |
+          cd testServer
           go mod download
-          go test -v ./...
+          go test ./... -coverprofile=coverage.out -covermode=atomic
+          go tool cover -func=coverage.out | grep total:
+
+      - name: Upload Go coverage
+        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457  # v4
+        with:
+          file: testServer/coverage.out
+          flags: testserver
 
       - name: Run go vet
         working-directory: testServer
@@ -62,7 +69,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

@@ -28,10 +28,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524f513eded29f8b3e8a9e93b5d5e99e75e  # v5
         with:
           python-version: '3.13'
           cache: 'pip'
@@ -40,9 +40,9 @@ jobs:
       - name: Install dependencies
         working-directory: managerServer/api
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov flake8
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+          pip3 install pytest pytest-cov flake8 pytest-asyncio aioresponses
 
       - name: Lint with flake8
         working-directory: managerServer/api
@@ -55,7 +55,21 @@ jobs:
       - name: Type check
         working-directory: managerServer/api
         run: |
-          python -m py_compile app.py
+          python3 -m py_compile app.py
+
+      - name: Install test dependencies
+        run: pip3 install pytest pytest-asyncio pytest-cov aioresponses
+
+      - name: Run unit tests with coverage
+        run: |
+          cd managerServer/api
+          python3 -m pytest --cov --cov-report=xml --cov-fail-under=90 -q
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457  # v4
+        with:
+          file: managerServer/api/coverage.xml
+          flags: managerserver-api
 
   build:
     name: Build and push Docker image
@@ -69,7 +83,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

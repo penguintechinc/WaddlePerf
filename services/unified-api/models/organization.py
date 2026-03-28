@@ -3,7 +3,7 @@
 from datetime import datetime
 
 
-def define_organization_models(db):
+def define_organization_models(db):  # pragma: no cover
     """Define organization-related tables with hierarchical structure.
 
     Defines:

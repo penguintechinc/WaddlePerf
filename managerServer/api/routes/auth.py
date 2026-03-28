@@ -4,11 +4,13 @@ from datetime import datetime, timedelta
 import jwt
 import hashlib
 import pyotp
-from models import db, User, JWTToken
+from models import row_to_user, row_to_jwt_token, hash_password
 from config import Config
+from penguin_dal.flask_ext import get_db
 
 auth_bp = Blueprint('auth', __name__)
 cfg = Config()
+
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -21,8 +23,16 @@ def login():
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
 
-    user = User.query.filter_by(username=username, is_active=True).first()
-    if not user or not user.check_password(password):
+    db = get_db()
+    user_row = db(
+        (db.users.username == username) & (db.users.is_active == True)
+    ).select().first()
+
+    if not user_row:
+        return jsonify({'error': 'Invalid credentials'}), 401
+
+    user = row_to_user(user_row)
+    if not user.check_password(password):
         return jsonify({'error': 'Invalid credentials'}), 401
 
     # Check MFA if enabled
@@ -39,19 +49,20 @@ def login():
 
     # Store token hash in database
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    jwt_token = JWTToken(
+    db.jwt_tokens.insert(
         user_id=user.id,
         token_hash=token_hash,
-        expires_at=datetime.utcnow() + cfg.JWT_EXPIRATION
+        expires_at=datetime.utcnow() + cfg.JWT_EXPIRATION,
+        issued_at=datetime.utcnow(),
+        revoked=False,
     )
-    db.session.add(jwt_token)
-    db.session.commit()
 
     return jsonify({
         'token': token,
         'user': user.to_dict(include_sensitive=True),
         'expires_in': int(cfg.JWT_EXPIRATION.total_seconds())
     })
+
 
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
@@ -63,30 +74,29 @@ def logout():
     token = auth_header.split(' ')[1]
     token_hash = hashlib.sha256(token.encode()).hexdigest()
 
-    jwt_token = JWTToken.query.filter_by(token_hash=token_hash).first()
-    if jwt_token:
-        jwt_token.revoked = True
-        db.session.commit()
+    db = get_db()
+    db(db.jwt_tokens.token_hash == token_hash).update(revoked=True)
 
     return jsonify({'message': 'Logged out successfully'})
+
 
 @auth_bp.route('/mfa/setup', methods=['POST'])
 def mfa_setup():
     """Setup MFA for current user"""
-    # Requires authentication
     user_id = get_user_from_token()
     if not user_id:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    user = User.query.get(user_id)
-    if not user:
+    db = get_db()
+    user_row = db.users[user_id]
+    if not user_row:
         return jsonify({'error': 'User not found'}), 404
+
+    user = row_to_user(user_row)
 
     # Generate MFA secret
     secret = pyotp.random_base32()
-    user.mfa_secret = secret
-    user.mfa_enabled = False  # Not enabled until verified
-    db.session.commit()
+    db(db.users.id == user_id).update(mfa_secret=secret, mfa_enabled=False)
 
     # Generate QR code URI
     totp = pyotp.TOTP(secret)
@@ -99,6 +109,7 @@ def mfa_setup():
         'secret': secret,
         'qr_uri': qr_uri
     })
+
 
 @auth_bp.route('/mfa/verify', methods=['POST'])
 def mfa_verify():
@@ -113,20 +124,21 @@ def mfa_verify():
     if not code:
         return jsonify({'error': 'MFA code required'}), 400
 
-    user = User.query.get(user_id)
-    if not user or not user.mfa_secret:
+    db = get_db()
+    user_row = db.users[user_id]
+    if not user_row or not user_row.mfa_secret:
         return jsonify({'error': 'MFA not set up'}), 400
 
-    totp = pyotp.TOTP(user.mfa_secret)
+    totp = pyotp.TOTP(user_row.mfa_secret)
     if not totp.verify(code):
         return jsonify({'error': 'Invalid MFA code'}), 401
 
-    user.mfa_enabled = True
-    db.session.commit()
+    db(db.users.id == user_id).update(mfa_enabled=True)
 
     return jsonify({'message': 'MFA enabled successfully'})
 
-def generate_jwt(user_id):
+
+def generate_jwt(user_id: int) -> str:
     """Generate JWT token"""
     payload = {
         'user_id': user_id,
@@ -134,6 +146,7 @@ def generate_jwt(user_id):
         'iat': datetime.utcnow()
     }
     return jwt.encode(payload, cfg.JWT_SECRET, algorithm='HS256')
+
 
 def get_user_from_token():
     """Extract user ID from JWT token"""
@@ -148,9 +161,12 @@ def get_user_from_token():
 
         # Check if token is revoked
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        jwt_token = JWTToken.query.filter_by(token_hash=token_hash, revoked=False).first()
+        db = get_db()
+        jwt_row = db(
+            (db.jwt_tokens.token_hash == token_hash) & (db.jwt_tokens.revoked == False)
+        ).select().first()
 
-        if not jwt_token:
+        if not jwt_row:
             return None
 
         return payload.get('user_id')

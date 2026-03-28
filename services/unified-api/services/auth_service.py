@@ -1,14 +1,14 @@
 """Authentication service layer for WaddlePerf Unified API"""
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from typing import Optional
 import bcrypt
 import jwt
 import pyotp
 import qrcode
 from io import BytesIO
 import base64
-from pydal import DAL
+from penguin_dal import AsyncDB
 
 
 @dataclass
@@ -36,11 +36,11 @@ class UserInfo:
 class AuthService:
     """Service class for authentication operations"""
 
-    def __init__(self, db: DAL, config):
+    def __init__(self, db: AsyncDB, config) -> None:
         """Initialize AuthService with database and config
 
         Args:
-            db: PyDAL DAL instance
+            db: penguin-dal AsyncDB instance
             config: Configuration object with JWT_SECRET and JWT_EXPIRATION_HOURS
         """
         self.db = db
@@ -134,10 +134,11 @@ class AuthService:
         """
         try:
             # Find user by email or username
-            user = self.db(
+            rows = await self.db(
                 (self.db.users.email == email_or_username) |
                 (self.db.users.username == email_or_username)
-            ).select().first()
+            ).select()
+            user = rows.first()
             if not user:
                 return AuthResponse(
                     success=False,
@@ -180,7 +181,7 @@ class AuthService:
             refresh_token = self._generate_jwt(user.id, 'refresh')
 
             # Store refresh token in database
-            self.db.refresh_tokens.insert(
+            await self.db.refresh_tokens.async_insert(
                 user_id=user.id,
                 token=refresh_token,
                 expires_at=datetime.now(timezone.utc) + timedelta(days=30),
@@ -218,10 +219,11 @@ class AuthService:
                 )
 
             # Check if token is revoked
-            token_record = self.db(
+            rows = await self.db(
                 (self.db.refresh_tokens.token == refresh_token) &
-                (self.db.refresh_tokens.is_revoked == False)
-            ).select().first()
+                (self.db.refresh_tokens.is_revoked == False)  # noqa: E712
+            ).select()
+            token_record = rows.first()
 
             if not token_record:
                 return AuthResponse(
@@ -261,10 +263,9 @@ class AuthService:
         """
         try:
             # Mark all refresh tokens as revoked
-            self.db(self.db.refresh_tokens.user_id == user_id).update(
+            await self.db(self.db.refresh_tokens.user_id == user_id).update(
                 is_revoked=True
             )
-            self.db.commit()
             return AuthResponse(success=True)
         except Exception as e:
             return AuthResponse(
@@ -282,7 +283,8 @@ class AuthService:
             AuthResponse indicating success or error
         """
         try:
-            user = self.db(self.db.users.email == email).select().first()
+            rows = await self.db(self.db.users.email == email).select()
+            user = rows.first()
             if not user:
                 # Don't reveal if email exists
                 return AuthResponse(success=True)
@@ -291,7 +293,7 @@ class AuthService:
             reset_token = self._generate_jwt(user.id, 'reset')
 
             # Store reset token
-            self.db.password_reset_tokens.insert(
+            await self.db.password_reset_tokens.async_insert(
                 user_id=user.id,
                 token=reset_token,
                 expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
@@ -328,10 +330,11 @@ class AuthService:
                 )
 
             # Check if token exists and hasn't been used
-            token_record = self.db(
+            rows = await self.db(
                 (self.db.password_reset_tokens.token == token) &
-                (self.db.password_reset_tokens.is_used == False)
-            ).select().first()
+                (self.db.password_reset_tokens.is_used == False)  # noqa: E712
+            ).select()
+            token_record = rows.first()
 
             if not token_record:
                 return AuthResponse(
@@ -349,19 +352,18 @@ class AuthService:
             # Update password
             user_id = payload.get('user_id')
             password_hash = self._hash_password(new_password)
-            self.db(self.db.users.id == user_id).update(
+            await self.db(self.db.users.id == user_id).update(
                 password_hash=password_hash
             )
 
             # Mark token as used
-            self.db(self.db.password_reset_tokens.id == token_record.id).update(
+            await self.db(self.db.password_reset_tokens.id == token_record.id).update(
                 is_used=True
             )
 
             # Revoke all refresh tokens
             await self.revoke_tokens(user_id)
 
-            self.db.commit()
             return AuthResponse(success=True)
         except Exception as e:
             return AuthResponse(
@@ -386,7 +388,8 @@ class AuthService:
             AuthResponse indicating success or error
         """
         try:
-            user = self.db(self.db.users.id == user_id).select().first()
+            rows = await self.db(self.db.users.id == user_id).select()
+            user = rows.first()
             if not user:
                 return AuthResponse(
                     success=False,
@@ -402,14 +405,13 @@ class AuthService:
 
             # Hash new password
             password_hash = self._hash_password(new_password)
-            self.db(self.db.users.id == user_id).update(
+            await self.db(self.db.users.id == user_id).update(
                 password_hash=password_hash
             )
 
             # Revoke all refresh tokens
             await self.revoke_tokens(user_id)
 
-            self.db.commit()
             return AuthResponse(success=True)
         except Exception as e:
             return AuthResponse(
@@ -427,7 +429,8 @@ class AuthService:
             AuthResponse with MFA secret and QR code
         """
         try:
-            user = self.db(self.db.users.id == user_id).select().first()
+            rows = await self.db(self.db.users.id == user_id).select()
+            user = rows.first()
             if not user:
                 return AuthResponse(
                     success=False,
@@ -481,7 +484,8 @@ class AuthService:
             AuthResponse indicating success or error
         """
         try:
-            user = self.db(self.db.users.id == user_id).select().first()
+            rows = await self.db(self.db.users.id == user_id).select()
+            user = rows.first()
             if not user:
                 return AuthResponse(
                     success=False,
@@ -497,11 +501,10 @@ class AuthService:
                 )
 
             # Enable MFA
-            self.db(self.db.users.id == user_id).update(
+            await self.db(self.db.users.id == user_id).update(
                 mfa_enabled=True,
                 mfa_secret=mfa_secret
             )
-            self.db.commit()
 
             return AuthResponse(success=True)
         except Exception as e:
@@ -525,7 +528,8 @@ class AuthService:
             AuthResponse indicating success or error
         """
         try:
-            user = self.db(self.db.users.id == user_id).select().first()
+            rows = await self.db(self.db.users.id == user_id).select()
+            user = rows.first()
             if not user:
                 return AuthResponse(
                     success=False,
@@ -540,11 +544,10 @@ class AuthService:
                 )
 
             # Disable MFA
-            self.db(self.db.users.id == user_id).update(
+            await self.db(self.db.users.id == user_id).update(
                 mfa_enabled=False,
                 mfa_secret=None
             )
-            self.db.commit()
 
             return AuthResponse(success=True)
         except Exception as e:
@@ -563,7 +566,8 @@ class AuthService:
             UserInfo object or None if not found
         """
         try:
-            user = self.db(self.db.users.id == user_id).select().first()
+            rows = await self.db(self.db.users.id == user_id).select()
+            user = rows.first()
             if not user:
                 return None
 

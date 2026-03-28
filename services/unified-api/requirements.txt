@@ -1,8 +1,8 @@
 quart==0.19.4
 quart-cors==0.7.0
 Flask-Security-Too==5.3.3
-pydal==20260110.1
-SQLAlchemy==2.0.36
+penguin-dal[quart,mysql]>=0.1.0
+aiomysql==0.2.0
 PyMySQL==1.1.0
 PyJWT==2.8.0
 bcrypt==4.1.2

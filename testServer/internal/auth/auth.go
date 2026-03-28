@@ -17,12 +17,28 @@ const (
 	UserContextKey contextKey = "user"
 )
 
+// AuthDB is satisfied by *database.DB and allows test injection.
+type AuthDB interface {
+	ValidateJWT(tokenHash string) (*database.User, error)
+	ValidateAPIKey(apiKey string) (*database.User, error)
+}
+
 type Authenticator struct {
-	db          *database.DB
+	db          AuthDB
 	authEnabled bool
 }
 
+// New creates an Authenticator backed by a real *database.DB.
 func New(db *database.DB, authEnabled bool) *Authenticator {
+	return &Authenticator{
+		db:          db,
+		authEnabled: authEnabled,
+	}
+}
+
+// NewWithAuthDB creates an Authenticator backed by any AuthDB implementation.
+// This is used in tests to inject a mock auth store.
+func NewWithAuthDB(db AuthDB, authEnabled bool) *Authenticator {
 	return &Authenticator{
 		db:          db,
 		authEnabled: authEnabled,

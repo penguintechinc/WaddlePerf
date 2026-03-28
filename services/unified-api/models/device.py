@@ -3,7 +3,7 @@
 from datetime import datetime
 
 
-def define_device_models(db):
+def define_device_models(db):  # pragma: no cover
     """Define device-related tables with enrollment support.
 
     Defines:

@@ -2,14 +2,13 @@
 # This ensures consistent build environment with all dependencies
 
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac AS builder
 
 # Install build dependencies (excluding systray dependencies since we build with nosystray tag)
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
-    gcc \
-    musl-dev
+    gcc && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /build
@@ -51,20 +50,20 @@ RUN if [ "${BUILDPLATFORM}" = "${TARGETPLATFORM}" ]; then \
     fi
 
 # Runtime stage - minimal image with just the binary
-FROM alpine:3.19 AS runtime
+FROM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a AS runtime
 
 # Install runtime dependencies for network testing
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     tzdata \
     curl \
     iputils-ping \
-    bind-tools \
+    dnsutils \
     net-tools \
     iperf3 \
     mtr \
-    tcpdump && \
-    adduser -D -u 1000 waddleperf
+    tcpdump && rm -rf /var/lib/apt/lists/* && \
+    useradd -m -u 1000 waddleperf
 
 # Copy the built binary from builder stage
 ARG TARGETOS=linux

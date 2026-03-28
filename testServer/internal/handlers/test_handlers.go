@@ -11,12 +11,24 @@ import (
 	"github.com/penguincloud/waddleperf/testserver/internal/validation"
 )
 
-type TestHandlers struct {
-	db *database.DB
+// TestResultStore is satisfied by *database.DB and allows test injection.
+type TestResultStore interface {
+	InsertTestResult(result *database.TestResult) (int64, error)
 }
 
+type TestHandlers struct {
+	db TestResultStore
+}
+
+// New creates a TestHandlers backed by a real *database.DB.
 func New(db *database.DB) *TestHandlers {
 	return &TestHandlers{db: db}
+}
+
+// NewWithStore creates a TestHandlers backed by any TestResultStore implementation.
+// This is used in tests to inject a mock store.
+func NewWithStore(store TestResultStore) *TestHandlers {
+	return &TestHandlers{db: store}
 }
 
 func (h *TestHandlers) HTTPTestHandler(w http.ResponseWriter, r *http.Request) {

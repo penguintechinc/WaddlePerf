@@ -67,7 +67,7 @@ func TestICMP(req ICMPTestRequest) (*ICMPTestResult, error) {
 		return testTraceroute(target, req.Timeout, result)
 	default:
 		result.Error = fmt.Sprintf("unsupported protocol: %s", protocol)
-		return result, fmt.Errorf(result.Error)
+		return result, fmt.Errorf("%s", result.Error)
 	}
 }
 
@@ -103,7 +103,7 @@ func testPing(target string, count, timeout int, result *ICMPTestResult) (*ICMPT
 		cmd = exec.Command("ping", "-n", strconv.Itoa(count), "-w", strconv.Itoa(timeout*1000), target)
 	default:
 		result.Error = "unsupported platform for ping"
-		return result, fmt.Errorf(result.Error)
+		return result, fmt.Errorf("%s", result.Error)
 	}
 
 	output, err := cmd.CombinedOutput()
@@ -185,7 +185,7 @@ func testTraceroute(target string, timeout int, result *ICMPTestResult) (*ICMPTe
 		cmd = exec.Command("tracert", "-w", strconv.Itoa(timeout*1000), "-h", "30", target)
 	default:
 		result.Error = "unsupported platform for traceroute"
-		return result, fmt.Errorf(result.Error)
+		return result, fmt.Errorf("%s", result.Error)
 	}
 
 	output, err := cmd.CombinedOutput()

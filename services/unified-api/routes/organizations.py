@@ -21,7 +21,7 @@ async def list_organizations() -> Tuple[Dict[str, Any], int]:
     offset = request.args.get('offset', 0, type=int)
 
     service = OrganizationService(current_app.db)
-    organizations = service.list_organizations(limit=limit, offset=offset)
+    organizations = await service.list_organizations(limit=limit, offset=offset)
 
     return {'status': 'success', 'data': organizations}, 200
 
@@ -37,7 +37,7 @@ async def get_organization(org_id: int) -> Tuple[Dict[str, Any], int]:
         JSON response with organization details
     """
     service = OrganizationService(current_app.db)
-    org = service.get_organization(org_id)
+    org = await service.get_organization(org_id)
 
     if not org:
         return {'status': 'error', 'message': 'Organization not found'}, 404
@@ -66,7 +66,7 @@ async def create_organization() -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Missing required field: name'}, 400
 
     service = OrganizationService(current_app.db)
-    org = service.create_organization(data)
+    org = await service.create_organization(data)
 
     return {'status': 'success', 'data': org}, 201
 
@@ -94,7 +94,7 @@ async def update_organization(org_id: int) -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Request body is required'}, 400
 
     service = OrganizationService(current_app.db)
-    org = service.update_organization(org_id, data)
+    org = await service.update_organization(org_id, data)
 
     if not org:
         return {'status': 'error', 'message': 'Organization not found'}, 404
@@ -113,7 +113,7 @@ async def delete_organization(org_id: int) -> Tuple[Dict[str, Any], int]:
         JSON response
     """
     service = OrganizationService(current_app.db)
-    success = service.delete_organization(org_id)
+    success = await service.delete_organization(org_id)
 
     if not success:
         return {'status': 'error', 'message': 'Organization not found'}, 404
@@ -139,7 +139,7 @@ async def list_organizational_units(org_id: int) -> Tuple[Dict[str, Any], int]:
     offset = request.args.get('offset', 0, type=int)
 
     service = OrganizationService(current_app.db)
-    ous = service.list_organizational_units(org_id, limit=limit, offset=offset)
+    ous = await service.list_organizational_units(org_id, limit=limit, offset=offset)
 
     return {'status': 'success', 'data': ous}, 200
 
@@ -167,7 +167,7 @@ async def create_organizational_unit(org_id: int) -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Missing required field: name'}, 400
 
     service = OrganizationService(current_app.db)
-    ou = service.create_organizational_unit(org_id, data)
+    ou = await service.create_organizational_unit(org_id, data)
 
     return {'status': 'success', 'data': ou}, 201
 
@@ -195,7 +195,7 @@ async def update_organizational_unit(org_id: int, ou_id: int) -> Tuple[Dict[str,
         return {'status': 'error', 'message': 'Request body is required'}, 400
 
     service = OrganizationService(current_app.db)
-    ou = service.update_organizational_unit(org_id, ou_id, data)
+    ou = await service.update_organizational_unit(org_id, ou_id, data)
 
     if not ou:
         return {'status': 'error', 'message': 'Organizational unit not found'}, 404
@@ -215,7 +215,7 @@ async def delete_organizational_unit(org_id: int, ou_id: int) -> Tuple[Dict[str,
         JSON response
     """
     service = OrganizationService(current_app.db)
-    success = service.delete_organizational_unit(org_id, ou_id)
+    success = await service.delete_organizational_unit(org_id, ou_id)
 
     if not success:
         return {'status': 'error', 'message': 'Organizational unit not found'}, 404

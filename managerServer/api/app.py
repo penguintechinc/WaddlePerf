@@ -3,7 +3,8 @@ import logging
 from flask import Flask
 from flask_cors import CORS
 from config import Config
-from models import db
+from penguin_dal.flask_ext import init_dal
+
 
 def create_app(config=None):
     """Application factory"""
@@ -12,15 +13,13 @@ def create_app(config=None):
     # Load configuration
     cfg = config or Config()
     app.config['SECRET_KEY'] = cfg.SECRET_KEY
-    app.config['SQLALCHEMY_DATABASE_URI'] = cfg.SQLALCHEMY_DATABASE_URI
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = cfg.SQLALCHEMY_TRACK_MODIFICATIONS
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = cfg.SQLALCHEMY_ENGINE_OPTIONS
+    app.config['DATABASE_URL'] = cfg.DATABASE_URL
 
     # Setup logging
     logging.basicConfig(level=cfg.LOG_LEVEL.upper())
 
     # Initialize extensions
-    db.init_app(app)
+    init_dal(app, uri=cfg.DATABASE_URL)
     CORS(app, origins=cfg.CORS_ORIGINS)
 
     # Register blueprints
@@ -48,6 +47,7 @@ def create_app(config=None):
         return {'status': 'healthy', 'version': cfg.API_VERSION}
 
     return app
+
 
 if __name__ == '__main__':
     app = create_app()

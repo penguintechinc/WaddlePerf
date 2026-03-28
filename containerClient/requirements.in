@@ -1,0 +1,36 @@
+# WaddlePerf containerClient Requirements
+# Python 3.13 compatible packages
+
+# Async HTTP client
+aiohttp>=3.10.0
+
+# HTTP/2 support
+h2>=4.1.0
+
+# System and network utilities
+psutil>=6.0.0
+
+# Data validation and parsing
+pydantic>=2.10.0
+
+# Logging and monitoring
+python-json-logger>=2.0.7
+
+# DNS resolution
+dnspython>=2.7.0
+
+# For better async performance
+uvloop>=0.21.0; platform_system != "Windows"
+
+# SSL/TLS support
+certifi>=2024.8.30
+
+# PenguinTech shared libraries
+penguin-libs[http]>=0.1.0
+penguintechinc-utils>=0.1.0
+
+# Testing
+pytest>=8.0
+pytest-asyncio>=0.23
+pytest-cov>=5.0
+aioresponses>=0.7.6
