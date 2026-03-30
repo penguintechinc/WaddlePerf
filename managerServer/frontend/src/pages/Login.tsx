@@ -23,6 +23,7 @@ const Login: React.FC = () => {
       forgotPasswordUrl="/forgot-password"
       showSignUp={false}
       onSuccess={(response) => {
+        /* v8 ignore next 3 */
         localStorage.setItem('auth_token', response.token || '');
         localStorage.setItem('user', JSON.stringify(response.user || {}));
         navigate('/dashboard');

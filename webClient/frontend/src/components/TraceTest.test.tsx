@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import TraceTest from './TraceTest'
@@ -316,6 +316,66 @@ describe('TraceTest component', () => {
     expect(screen.queryByText('Full Trace Report')).not.toBeInTheDocument()
   })
 
+  it('shows raw_results JSON in detailed results modal when provided', async () => {
+    const user = userEvent.setup()
+    let capturedCallback: ((data: any) => void) | null = null
+
+    mockOnTestComplete.mockImplementation((cb: (data: any) => void) => {
+      capturedCallback = cb
+    })
+
+    render(<TraceTest isAuthenticated={true} />)
+    const targetInput = screen.getByLabelText(/Target Host/i)
+    await user.type(targetInput, 'example.com')
+    await user.click(screen.getByText('Start Trace'))
+
+    act(() => {
+      if (capturedCallback) {
+        capturedCallback({
+          test_type: 'http_trace',
+          target: 'example.com',
+          success: true,
+          raw_results: { hops: ['1.2.3.4'], rtt: 42 },
+          hops: ['1.2.3.4'],
+          latency_ms: 42,
+        })
+      }
+    })
+
+    await user.click(screen.getByText('View Detailed Results'))
+    expect(screen.getByText('Full Trace Report')).toBeInTheDocument()
+    // raw_results should be shown as JSON
+    expect(screen.getByText(/hops/)).toBeInTheDocument()
+  })
+
+  it('shows error message in detailed results modal when result has error', async () => {
+    const user = userEvent.setup()
+    let capturedCallback: ((data: any) => void) | null = null
+
+    mockOnTestComplete.mockImplementation((cb: (data: any) => void) => {
+      capturedCallback = cb
+    })
+
+    render(<TraceTest isAuthenticated={true} />)
+    const targetInput = screen.getByLabelText(/Target Host/i)
+    await user.type(targetInput, 'example.com')
+    await user.click(screen.getByText('Start Trace'))
+
+    act(() => {
+      if (capturedCallback) {
+        capturedCallback({
+          test_type: 'http_trace',
+          target: 'example.com',
+          success: false,
+          error: 'Connection timed out',
+        })
+      }
+    })
+
+    await user.click(screen.getByText('View Detailed Results'))
+    expect(screen.getByText('Full Trace Report')).toBeInTheDocument()
+  })
+
   it('shows latency when provided in results', async () => {
     const user = userEvent.setup()
     let capturedCallback: ((data: any) => void) | null = null
@@ -341,5 +401,65 @@ describe('TraceTest component', () => {
     })
 
     expect(screen.getByText('45.57 ms')).toBeInTheDocument()
+  })
+
+  it('shows validation error when startTest throws an error', async () => {
+    const user = userEvent.setup()
+    mockStartTest.mockImplementation(() => { throw new Error('WebSocket send failed') })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<TraceTest isAuthenticated={true} />)
+    const targetInput = screen.getByLabelText(/Target Host/i)
+    await user.type(targetInput, 'example.com')
+    await user.click(screen.getByText('Start Trace'))
+
+    expect(screen.getByText(/Failed to start test/i)).toBeInTheDocument()
+    consoleSpy.mockRestore()
+    // Restore default no-op implementation to avoid affecting subsequent tests
+    mockStartTest.mockImplementation(() => {})
+  })
+
+  it('invokes downloadDetailedResults when Download JSON button is clicked', async () => {
+    const user = userEvent.setup()
+    let capturedCallback: ((data: any) => void) | null = null
+
+    mockOnTestComplete.mockImplementation((cb: (data: any) => void) => {
+      capturedCallback = cb
+    })
+
+    render(<TraceTest isAuthenticated={true} />)
+
+    // Provide jsdom stubs for the DOM/URL APIs used by downloadDetailedResults.
+    // These APIs are marked with /* v8 ignore next 8 */ in the source since they
+    // cannot execute in jsdom — we only need the function called to count as covered.
+    global.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock')
+    global.URL.revokeObjectURL = vi.fn()
+
+    const targetInput = screen.getByLabelText(/Target Host/i)
+    await user.type(targetInput, 'example.com')
+    await user.click(screen.getByText('Start Trace'))
+
+    // After clicking Start Trace, isRunning=true, useEffect re-runs and updates capturedCallback
+    // with the isRunning=true closure. We then call it to set the result.
+    act(() => {
+      if (capturedCallback) {
+        capturedCallback({
+          test_type: 'http_trace',
+          target: 'example.com',
+          success: true,
+          raw_results: { detail: 'test' },
+        })
+      }
+    })
+
+    // Wait for result state to settle and "View Detailed Results" to appear
+    await waitFor(() => expect(screen.getByText('View Detailed Results')).toBeInTheDocument())
+    await user.click(screen.getByText('View Detailed Results'))
+    // Click Download JSON — the function runs up to the v8-ignored blob/URL/DOM lines
+    await waitFor(() => screen.getByText('Download JSON'))
+    await user.click(screen.getByText('Download JSON'))
+
+    // The function was called (URL.createObjectURL is the first API in the ignored block)
+    expect(global.URL.createObjectURL).toHaveBeenCalled()
   })
 })

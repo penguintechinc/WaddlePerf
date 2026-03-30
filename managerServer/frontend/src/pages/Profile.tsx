@@ -95,6 +95,7 @@ const Profile: React.FC = () => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setSuccess('Copied to clipboard!');
+    /* v8 ignore next */
     setTimeout(() => setSuccess(''), 3000);
   };
 

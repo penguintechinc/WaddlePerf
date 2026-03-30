@@ -205,4 +205,106 @@ describe('Profile page', () => {
     fireEvent.click(copyButtons[0])
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('test-api-key-123'))
   })
+
+  it('shows error when MFA setup fails', async () => {
+    api.setupMfa.mockRejectedValue({ response: { data: { error: 'MFA setup failed' } } })
+    render(<Profile />)
+    await waitFor(() => screen.getByRole('button', { name: /Enable MFA/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Enable MFA/i }))
+    await waitFor(() => {
+      const errorEl = document.querySelector('.error-message')
+      expect(errorEl).toBeInTheDocument()
+      expect(errorEl?.textContent).toContain('MFA setup failed')
+    })
+  })
+
+  it('shows error when MFA verification fails', async () => {
+    const user = userEvent.setup()
+    api.setupMfa.mockResolvedValue({ secret: 'MYSECRET', qr_uri: 'otpauth://...' })
+    api.verifyMfa.mockRejectedValue({ response: { data: { error: 'Invalid code' } } })
+    render(<Profile />)
+    await waitFor(() => screen.getByRole('button', { name: /Enable MFA/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Enable MFA/i }))
+    await waitFor(() => screen.getByLabelText(/Enter verification code/i))
+    await user.type(screen.getByLabelText(/Enter verification code/i), '999999')
+    fireEvent.click(screen.getByText('Verify and Enable'))
+    await waitFor(() => {
+      const errorEl = document.querySelector('.error-message')
+      expect(errorEl).toBeInTheDocument()
+      expect(errorEl?.textContent).toContain('Invalid code')
+    })
+  })
+
+  it('shows error when password change API fails', async () => {
+    const user = userEvent.setup()
+    api.changeUserPassword.mockRejectedValue({ response: { data: { error: 'Current password wrong' } } })
+    render(<Profile />)
+    await waitFor(() => screen.getByText('Change Password'))
+    fireEvent.click(screen.getByText('Change Password'))
+    await user.type(screen.getByLabelText('New Password'), 'newpassword123')
+    await user.type(screen.getByLabelText('Confirm Password'), 'newpassword123')
+    fireEvent.click(screen.getByText('Update Password'))
+    await waitFor(() => {
+      const errorEl = document.querySelector('.error-message')
+      expect(errorEl).toBeInTheDocument()
+      expect(errorEl?.textContent).toContain('Current password wrong')
+    })
+  })
+
+  it('handles password change when authUser is null', async () => {
+    const user = userEvent.setup()
+    mockUseAuth.mockReturnValue({ user: null } as any)
+    render(<Profile />)
+    // loadUserProfile should return early without calling setLoading
+    await waitFor(() => {
+      expect(document.querySelector('.loading-container')).toBeInTheDocument()
+    })
+  })
+
+  it('shows inactive status badge when user is_active is false', async () => {
+    api.getUser.mockResolvedValue({ ...mockAuthUser, is_active: false })
+    render(<Profile />)
+    await waitFor(() => expect(screen.getByText('Inactive')).toBeInTheDocument())
+  })
+
+  it('copies MFA secret to clipboard when Copy is clicked', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+    api.setupMfa.mockResolvedValue({ secret: 'MYSECRET123', qr_uri: 'otpauth://...' })
+    render(<Profile />)
+    await waitFor(() => screen.getByText('Enable MFA'))
+    fireEvent.click(screen.getByText('Enable MFA'))
+    await waitFor(() => screen.getByText('MYSECRET123'))
+    const copyButtons = screen.getAllByText('Copy')
+    fireEvent.click(copyButtons[1]) // Second copy button is for secret
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('MYSECRET123'))
+  })
+
+  it('closes password form when Cancel is clicked', async () => {
+    render(<Profile />)
+    await waitFor(() => screen.getByText('Change Password'))
+    fireEvent.click(screen.getByText('Change Password'))
+    expect(screen.getByLabelText('New Password')).toBeInTheDocument()
+    const cancelButtons = screen.getAllByText('Cancel')
+    fireEvent.click(cancelButtons[0]) // First cancel button is in password form
+    expect(screen.queryByLabelText('New Password')).not.toBeInTheDocument()
+  })
+
+  it('closes MFA setup when Cancel is clicked', async () => {
+    api.setupMfa.mockResolvedValue({ secret: 'MYSECRET', qr_uri: 'otpauth://...' })
+    render(<Profile />)
+    await waitFor(() => screen.getByText('Enable MFA'))
+    fireEvent.click(screen.getByText('Enable MFA'))
+    await waitFor(() => screen.getByText('Setup Multi-Factor Authentication'))
+    // Find the cancel button that's a child of mfa-setup section
+    const mfaSetup = document.querySelector('.mfa-setup')
+    const cancelBtn = mfaSetup?.querySelector('button[type="button"]')
+    if (cancelBtn) {
+      fireEvent.click(cancelBtn)
+    }
+    expect(screen.queryByText('Setup Multi-Factor Authentication')).not.toBeInTheDocument()
+  })
 })

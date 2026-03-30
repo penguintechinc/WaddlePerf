@@ -343,4 +343,63 @@ describe('TestRunner component', () => {
     await waitFor(() => expect(screen.getByText('WaddlePerf')).toBeInTheDocument())
     consoleSpy.mockRestore()
   })
+
+  it('attempts reconnection when test is started but WebSocket is not connected', async () => {
+    // Connect fails, so wsConnected stays false
+    mocks.websocketService.connect.mockRejectedValue(new Error('Connection failed'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<TestRunner user={defaultUser} onLogout={mockOnLogout} authEnabled={true} />)
+    await waitFor(() => screen.getByText('Network Tests'))
+    fireEvent.click(screen.getByText('Network Tests'))
+
+    // Start test while disconnected — triggers reconnect path
+    fireEvent.click(screen.getByTestId('start-test'))
+
+    // Verify it tried to re-initialize (connect called at least twice: initial + reconnect)
+    await waitFor(() => expect(mocks.websocketService.connect).toHaveBeenCalledTimes(2))
+    consoleSpy.mockRestore()
+  })
+
+  it('run again callback resets latency data and metrics', async () => {
+    let completeCallback: ((data: any) => void) | null = null
+    let startedCallback: ((data: any) => void) | null = null
+    mocks.websocketService.onTestStarted.mockImplementation((cb: (data: any) => void) => {
+      startedCallback = cb
+    })
+    mocks.websocketService.onTestComplete.mockImplementation((cb: (data: any) => void) => {
+      completeCallback = cb
+    })
+
+    render(<TestRunner user={defaultUser} onLogout={mockOnLogout} authEnabled={true} />)
+    await waitFor(() => screen.getByText('Network Tests'))
+    fireEvent.click(screen.getByText('Network Tests'))
+
+    act(() => {
+      if (startedCallback) startedCallback({ test_type: 'http' })
+    })
+    act(() => {
+      if (completeCallback) {
+        completeCallback({ test_type: 'http', success: true, latency_ms: 45 })
+      }
+    })
+
+    expect(screen.getByTestId('test-results')).toBeInTheDocument()
+    // Click Run Again via the mocked TestResults component
+    fireEvent.click(screen.getByTestId('run-again'))
+    // After run again, results are cleared and welcome message reappears
+    expect(screen.queryByTestId('test-results')).not.toBeInTheDocument()
+    expect(screen.getByText('Welcome to WaddlePerf')).toBeInTheDocument()
+  })
+
+  it('handles logout failure and still calls onLogout', async () => {
+    mocks.logout.mockRejectedValue(new Error('Logout failed'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<TestRunner user={defaultUser} onLogout={mockOnLogout} authEnabled={true} />)
+    await waitFor(() => screen.getByText('Logout'))
+    fireEvent.click(screen.getByText('Logout'))
+    await waitFor(() => expect(mockOnLogout).toHaveBeenCalled())
+    consoleSpy.mockRestore()
+  })
 })

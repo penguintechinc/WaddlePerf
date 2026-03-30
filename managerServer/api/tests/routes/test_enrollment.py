@@ -770,7 +770,8 @@ class TestUpdateOuConfig:
         ou_row = _make_ou_row()
         mock_db.organization_units.__getitem__ = MagicMock(return_value=ou_row)
         config_row = _make_client_config_row(ou_id=1)
-        mock_db.return_value.select.return_value.first.return_value = config_row
+        # Route calls .first() twice: once to check existing, once to return updated
+        mock_db.return_value.select.return_value.first.side_effect = [config_row, config_row]
 
         with patch('routes.enrollment.get_user_from_token', return_value=1):
             with patch('routes.enrollment.get_db', return_value=mock_db):
@@ -847,7 +848,8 @@ class TestUpdateDefaultConfig:
         user_row = _make_user_row(role='global_admin')
         mock_db.users.__getitem__ = MagicMock(return_value=user_row)
         config_row = _make_client_config_row(is_default=True)
-        mock_db.return_value.select.return_value.first.return_value = config_row
+        # Route calls .first() twice: once to find, once to return updated
+        mock_db.return_value.select.return_value.first.side_effect = [config_row, config_row]
 
         with patch('routes.enrollment.get_user_from_token', return_value=1):
             with patch('routes.enrollment.get_db', return_value=mock_db):

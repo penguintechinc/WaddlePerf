@@ -223,6 +223,29 @@ func TestHTTP_TargetWithoutScheme(t *testing.T) {
 	}
 }
 
+// TestHTTP_AllRequestsFailed exercises the "len(latencies) == 0" path (line 147-154)
+// where all HTTP requests fail. This uses an unreachable target and count > 1
+// to ensure multiple failed attempts.
+func TestHTTP_AllRequestsFailed(t *testing.T) {
+	req := protocols.HTTPTestRequest{
+		Target:   "http://192.0.2.1:9999", // TEST-NET-1, unreachable
+		Protocol: "http1",
+		Timeout:  1,
+		Count:    2, // Multiple attempts to ensure latencies stays empty
+	}
+
+	result, err := protocols.TestHTTP(req)
+	if result == nil {
+		t.Fatal("TestHTTP should return a result even when all requests fail")
+	}
+	// All requests failed, so success should be false.
+	if result.Success {
+		t.Error("expected success=false when all requests fail")
+	}
+	// err may or may not be nil depending on implementation.
+	_ = err
+}
+
 // TestHTTPTestResult_ToJSON verifies JSON marshalling.
 func TestHTTPTestResult_ToJSON(t *testing.T) {
 	r := &protocols.HTTPTestResult{

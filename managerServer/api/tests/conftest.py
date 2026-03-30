@@ -29,6 +29,8 @@ class FirstMockWrapper:
         """Call handler - returns either side_effect (if set) or return_value."""
         # If side_effect was explicitly set, use it
         if self.side_effect is not None:
+            if callable(self.side_effect) and not isinstance(self.side_effect, list):
+                return self.side_effect()
             if isinstance(self.side_effect, list) and self.side_effect:
                 return self.side_effect.pop(0)
         # If we're using internal side_effects, pop from them
@@ -146,6 +148,23 @@ def mock_db():
     db.devices.user_id = MockField('devices.user_id')
 
     db.organization_units.id = MockField('organization_units.id')
+    db.organization_units.name = MockField('organization_units.name')
+
+    # Enrollment table fields
+    db.ou_enrollment_secrets.id = MockField('ou_enrollment_secrets.id')
+    db.ou_enrollment_secrets.ou_id = MockField('ou_enrollment_secrets.ou_id')
+    db.ou_enrollment_secrets.secret = MockField('ou_enrollment_secrets.secret')
+    db.ou_enrollment_secrets.is_active = MockField('ou_enrollment_secrets.is_active')
+    db.device_enrollments.id = MockField('device_enrollments.id')
+    db.device_enrollments.ou_id = MockField('device_enrollments.ou_id')
+    db.device_enrollments.device_serial = MockField('device_enrollments.device_serial')
+    db.device_enrollments.is_active = MockField('device_enrollments.is_active')
+    db.client_configs.id = MockField('client_configs.id')
+    db.client_configs.ou_id = MockField('client_configs.ou_id')
+    db.client_configs.is_default = MockField('client_configs.is_default')
+    db.system_config.id = MockField('system_config.id')
+    db.system_config.config_key = MockField('system_config.config_key')
+    db.system_config.config_value = MockField('system_config.config_value')
 
     # Setup query chain: db(condition).select()
     # Use DualModeSelect that supports both .first() and iteration

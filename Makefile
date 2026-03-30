@@ -28,7 +28,7 @@ test:
 
 test-unit:
 	@echo "=== Python Unit Tests ==="
-	cd services/unified-api && python3 -m pytest --cov --cov-fail-under=90 -q || true
+	cd services/unified-api && python3 -m pytest --cov=. --cov-fail-under=90 -q || true
 	cd managerServer/api && python3 -m pytest --cov --cov-fail-under=90 -q || true
 	cd webClient/api && python3 -m pytest --cov --cov-fail-under=90 -q || true
 	cd containerClient && python3 -m pytest tests/unit/ --cov --cov-fail-under=90 -q || true

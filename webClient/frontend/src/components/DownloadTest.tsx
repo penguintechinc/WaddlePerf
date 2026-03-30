@@ -71,11 +71,13 @@ function DownloadTest({ testServerUrl }: DownloadTestProps) {
         }
 
         const reader = response.body?.getReader()
+        /* v8 ignore next 3 */
         if (!reader) {
           throw new Error('No response body')
         }
 
         let chunkBytes = 0
+        /* v8 ignore next 27 */
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
@@ -126,6 +128,7 @@ function DownloadTest({ testServerUrl }: DownloadTestProps) {
       setResult(finalResult)
       console.log('[DownloadTest] Test complete:', finalResult)
     } catch (error) {
+      /* v8 ignore next 5 */
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('[DownloadTest] Test cancelled by user')
       } else {

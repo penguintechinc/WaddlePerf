@@ -1459,28 +1459,318 @@ func TestSpeedTestUploadHandler_LargeUpload(t *testing.T) {
 	}
 }
 
-func TestSpeedTestResultHandler_SaveError(t *testing.T) {
+
+// ---------------------------------------------------------------------------
+// New() constructor (uses *database.DB, tested with nil pointer)
+// ---------------------------------------------------------------------------
+
+func TestNew_WithNilDB(t *testing.T) {
+	// New() takes a *database.DB — pass nil to exercise the constructor path
+	// without requiring a real DB connection.
+	var db *database.DB
+	h := handlers.New(db)
+	if h == nil {
+		t.Error("New() returned nil, expected non-nil *TestHandlers")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// saveTestResult behavior (logs error but returns results anyway)
+// ---------------------------------------------------------------------------
+
+func TestSaveTestResult_LogsButContinuesOnDBError(t *testing.T) {
+	// The handlers intentionally do NOT return errors if saveTestResult fails.
+	// They log the error and return the test results anyway.
+	// This test verifies the handler still returns 200 even with DB error.
 	store := &mockStore{
-		insertErr: &net.OpError{Op: "write", Err: errors.New("db error")},
+		insertErr: errors.New("database connection failed"),
 	}
 	h := handlers.NewWithStore(store)
-	body := []byte(`{
-		"test_type": "http",
-		"protocol": "http",
-		"target": "example.com",
-		"result": {
-			"latency": 50,
-			"loss": 0,
-			"timestamp": "2025-01-01T00:00:00Z"
+
+	// Build a simple HTTP test request that would execute successfully
+	body, _ := json.Marshal(map[string]interface{}{
+		"target":   "example.com",
+		"protocol": "http1",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/http", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Device-Serial", "test-device")
+	rr := httptest.NewRecorder()
+
+	// Even with DB error, handler returns 200 with test results
+	h.HTTPTestHandler(rr, req)
+
+	// Should still return 200 despite DB error (results are returned)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 despite DB error, got %d", rr.Code)
+	}
+	// Verify some response body was sent
+	if rr.Body.Len() == 0 {
+		t.Error("expected response body, got empty")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SpeedTestDownloadHandler error path (io.Copy error simulation)
+// ---------------------------------------------------------------------------
+
+func TestSpeedTestDownloadHandler_InvalidSize_NegativeOrZero(t *testing.T) {
+	h := newHandlers()
+	req := httptest.NewRequest(http.MethodGet, "/speedtest/download?size=-5", nil)
+	rr := httptest.NewRecorder()
+
+	h.SpeedTestDownloadHandler(rr, req)
+
+	// Negative size should fall back to default (10MB)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	if rr.Header().Get("Content-Length") != "10485760" {
+		t.Errorf("expected Content-Length=10485760 for negative size, got %q",
+			rr.Header().Get("Content-Length"))
+	}
+}
+
+func TestSpeedTestDownloadHandler_NonNumericSize(t *testing.T) {
+	h := newHandlers()
+	req := httptest.NewRequest(http.MethodGet, "/speedtest/download?size=abc", nil)
+	rr := httptest.NewRecorder()
+
+	h.SpeedTestDownloadHandler(rr, req)
+
+	// Non-numeric size should fall back to default (10MB)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	if rr.Header().Get("Content-Length") != "10485760" {
+		t.Errorf("expected Content-Length=10485760 for non-numeric size, got %q",
+			rr.Header().Get("Content-Length"))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SpeedTestUploadHandler - verify content-type response
+// ---------------------------------------------------------------------------
+
+func TestSpeedTestUploadHandler_ContentType(t *testing.T) {
+	h := newHandlers()
+	body := bytes.Repeat([]byte("x"), 512)
+	req := httptest.NewRequest(http.MethodPost, "/speedtest/upload", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	h.SpeedTestUploadHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	if rr.Header().Get("Content-Type") != "application/json" {
+		t.Errorf("expected Content-Type=application/json, got %q", rr.Header().Get("Content-Type"))
+	}
+	// Verify CORS header is set
+	if rr.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Error("expected Access-Control-Allow-Origin header to be set")
+	}
+}
+
+func TestSpeedTestDownloadHandler_MultipleChunks(t *testing.T) {
+	h := newHandlers()
+	// Request 2MB, which will require multiple 64KB chunks
+	req := httptest.NewRequest(http.MethodGet, "/speedtest/download?size=2", nil)
+	rr := httptest.NewRecorder()
+
+	h.SpeedTestDownloadHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	// Should be 2MB (2097152 bytes)
+	if rr.Header().Get("Content-Length") != "2097152" {
+		t.Errorf("expected Content-Length=2097152, got %q", rr.Header().Get("Content-Length"))
+	}
+	// Verify body has content
+	if rr.Body.Len() == 0 {
+		t.Error("expected response body with data")
+	}
+}
+
+func TestSpeedTestDownloadHandler_AllHeaders(t *testing.T) {
+	h := newHandlers()
+	req := httptest.NewRequest(http.MethodGet, "/speedtest/download?size=1", nil)
+	rr := httptest.NewRecorder()
+
+	h.SpeedTestDownloadHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	// Verify all headers are set
+	headers := []string{"Content-Type", "Content-Length", "Cache-Control", "Pragma", "Access-Control-Allow-Origin", "Access-Control-Expose-Headers"}
+	for _, header := range headers {
+		if rr.Header().Get(header) == "" {
+			t.Errorf("expected %s header to be set", header)
 		}
-	}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/results", bytes.NewReader(body))
+	}
+}
+
+func TestSpeedTestDownloadHandler_MaxSize(t *testing.T) {
+	h := newHandlers()
+	// Request exactly max size (100MB)
+	req := httptest.NewRequest(http.MethodGet, "/speedtest/download?size=100", nil)
+	rr := httptest.NewRecorder()
+
+	h.SpeedTestDownloadHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	// Should be 100MB (104857600 bytes)
+	if rr.Header().Get("Content-Length") != "104857600" {
+		t.Errorf("expected Content-Length=104857600, got %q", rr.Header().Get("Content-Length"))
+	}
+}
+
+func TestUDPTestHandler_SavesResult(t *testing.T) {
+	h := newHandlers()
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"target":   "example.com",
+		"protocol": "dns",
+		"port":     53,
+		"query":    "example.com",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/udp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.UDPTestHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	var result map[string]interface{}
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	// Should have some result data
+	if len(result) == 0 {
+		t.Error("expected non-empty result")
+	}
+}
+
+func TestSpeedTestUploadHandler_CalculatesThroughput(t *testing.T) {
+	h := newHandlers()
+	// Send 100KB in one chunk
+	body := bytes.Repeat([]byte("x"), 102400)
+	req := httptest.NewRequest(http.MethodPost, "/speedtest/upload", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	h.SpeedTestUploadHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	// Verify throughput was calculated
+	if throughput, ok := resp["throughput_mbps"]; ok {
+		if mbps, ok := throughput.(float64); !ok || mbps < 0 {
+			t.Errorf("expected non-negative throughput, got %v", throughput)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SpeedTestResultHandler error handling (covers error path)
+// ---------------------------------------------------------------------------
+
+func TestSpeedTestResultHandler_SaveError(t *testing.T) {
+	// Create a mock store that returns an error
+	store := &mockStore{
+		insertErr: errors.New("database insert failed"),
+	}
+	h := handlers.NewWithStore(store)
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"download_mbps": 95.2,
+		"upload_mbps":   48.7,
+		"latency_ms":    15.3,
+		"jitter_ms":     2.2,
+		"server_url":    "https://test.example.com",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/speedtest/result", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
 	h.SpeedTestResultHandler(rr, req)
 
-	// Should handle error gracefully
-	if rr.Code != http.StatusOK && rr.Code != http.StatusInternalServerError {
-		t.Errorf("unexpected status code: %d", rr.Code)
+	// Should return 500 when saveSpeedTestResult fails
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 on DB error, got %d", rr.Code)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Test handlers with saveTestResult error coverage
+// ---------------------------------------------------------------------------
+
+
+// TestSpeedTestUploadHandler_IOError covers the error path in upload handler
+func TestSpeedTestUploadHandler_IOError(t *testing.T) {
+	h := newHandlers()
+	// Create a request with a body that will trigger an error when read
+	// We use a broken reader that errors immediately
+	brokenReader := &brokenBodyReader{}
+	req := httptest.NewRequest(http.MethodPost, "/speedtest/upload", brokenReader)
+	rr := httptest.NewRecorder()
+
+	h.SpeedTestUploadHandler(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 for io.Copy error, got %d", rr.Code)
+	}
+}
+
+// TestSpeedTestDownloadHandler_WriterError simulates a write error during download
+func TestSpeedTestDownloadHandler_WriterError(t *testing.T) {
+	h := newHandlers()
+	req := httptest.NewRequest(http.MethodGet, "/speedtest/download?size=1", nil)
+	
+	// Use a custom response writer that fails after headers
+	failWriter := &failingWriter{}
+	h.SpeedTestDownloadHandler(failWriter, req)
+
+	// Should not panic and should attempt to set headers
+	if failWriter.headersCalled == 0 {
+		t.Error("expected headers to be set")
+	}
+}
+
+// failingWriter is a mock ResponseWriter that fails on Write
+type failingWriter struct {
+	headersCalled int
+	http.ResponseWriter
+}
+
+func (fw *failingWriter) Header() http.Header {
+	fw.headersCalled++
+	return make(http.Header)
+}
+
+func (fw *failingWriter) Write(p []byte) (int, error) {
+	return 0, errors.New("simulated write error")
+}
+
+func (fw *failingWriter) WriteHeader(statusCode int) {}
+
+// brokenBodyReader simulates a read error during request body processing
+type brokenBodyReader struct{}
+
+func (b *brokenBodyReader) Read(p []byte) (int, error) {
+	return 0, errors.New("simulated read error")
+}
+
+func (b *brokenBodyReader) Close() error {
+	return nil
 }

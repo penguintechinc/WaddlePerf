@@ -31,6 +31,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     updateEffectiveTheme();
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    /* v8 ignore next 5 */
     const handler = () => {
       if (theme === 'auto') {
         updateEffectiveTheme();

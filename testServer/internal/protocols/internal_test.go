@@ -538,3 +538,19 @@ func TestTLSVersionToString_Comprehensive(t *testing.T) {
 		t.Errorf("expected 'Unknown (0x...)' format, got %q", unknown)
 	}
 }
+
+// Test parseTarget with invalid URL to hit error branch
+func TestParseTarget_BadURL(t *testing.T) {
+	_, err := parseTarget("http://[invalid", 0, "raw")
+	if err == nil {
+		t.Error("expected error for malformed URL")
+	}
+}
+
+// Test parseUDPTarget with invalid URL to hit error branch
+func TestParseUDPTarget_BadURL(t *testing.T) {
+	_, err := parseUDPTarget("http://[invalid", 0, "dns")
+	if err == nil {
+		t.Error("expected error for malformed URL")
+	}
+}

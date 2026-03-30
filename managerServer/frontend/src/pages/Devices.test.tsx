@@ -227,4 +227,144 @@ describe('Devices page', () => {
     render(<Devices />)
     await waitFor(() => expect(screen.getAllByText('Never').length).toBeGreaterThan(0))
   })
+
+  it('formats minutes-ago for device seen recently', async () => {
+    const recentDevices = [{ ...mockDevices[0], minutes_since_last_seen: 30 }]
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: recentDevices, pages: 1 } })
+    })
+    render(<Devices />)
+    await waitFor(() => expect(screen.getByText('30m ago')).toBeInTheDocument())
+  })
+
+  it('formats hours-ago for device seen hours ago', async () => {
+    const recentDevices = [{ ...mockDevices[0], minutes_since_last_seen: 120 }]
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: recentDevices, pages: 1 } })
+    })
+    render(<Devices />)
+    await waitFor(() => expect(screen.getByText('2h ago')).toBeInTheDocument())
+  })
+
+  it('formats days-ago for device seen days ago', async () => {
+    const recentDevices = [{ ...mockDevices[0], minutes_since_last_seen: 2880 }]
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: recentDevices, pages: 1 } })
+    })
+    render(<Devices />)
+    await waitFor(() => expect(screen.getByText('2d ago')).toBeInTheDocument())
+  })
+
+  it('shows Unknown when last_seen is set but minutesSince is null', async () => {
+    const recentDevices = [{ ...mockDevices[0], last_seen: new Date().toISOString(), minutes_since_last_seen: null }]
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: recentDevices, pages: 1 } })
+    })
+    render(<Devices />)
+    await waitFor(() => expect(screen.getByText('Unknown')).toBeInTheDocument())
+  })
+
+  it('calls reactivate API when Reactivate button is clicked', async () => {
+    ;(axios.post as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    render(<Devices />)
+    await waitFor(() => screen.getByText('Reactivate'))
+    fireEvent.click(screen.getByText('Reactivate'))
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith(
+      expect.stringContaining('/reactivate'),
+      {},
+      expect.objectContaining({ withCredentials: true })
+    ))
+  })
+
+  it('shows alert when reactivate API fails', async () => {
+    ;(axios.post as ReturnType<typeof vi.fn>).mockRejectedValue({ response: { data: { error: 'Reactivate failed' } } })
+    const alertSpy = vi.spyOn(global, 'alert').mockImplementation(() => {})
+    render(<Devices />)
+    await waitFor(() => screen.getByText('Reactivate'))
+    fireEvent.click(screen.getByText('Reactivate'))
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Reactivate failed'))
+    alertSpy.mockRestore()
+  })
+
+  it('shows alert when deactivate API fails', async () => {
+    ;(global.confirm as ReturnType<typeof vi.fn>).mockReturnValue(true)
+    ;(axios.post as ReturnType<typeof vi.fn>).mockRejectedValue({ response: { data: { error: 'Deactivate failed' } } })
+    const alertSpy = vi.spyOn(global, 'alert').mockImplementation(() => {})
+    render(<Devices />)
+    await waitFor(() => screen.getByText('Deactivate'))
+    fireEvent.click(screen.getByText('Deactivate'))
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Deactivate failed'))
+    alertSpy.mockRestore()
+  })
+
+  it('shows pagination when totalPages > 1', async () => {
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: mockDevices, pages: 3 } })
+    })
+    render(<Devices />)
+    await waitFor(() => {
+      expect(screen.getByText('Previous')).toBeInTheDocument()
+      expect(screen.getByText('Next')).toBeInTheDocument()
+      expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
+    })
+  })
+
+  it('changes page when Next is clicked', async () => {
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: mockDevices, pages: 3 } })
+    })
+    render(<Devices />)
+    await waitFor(() => screen.getByText('Next'))
+    fireEvent.click(screen.getByText('Next'))
+    await waitFor(() => expect(screen.getByText('Page 2 of 3')).toBeInTheDocument())
+  })
+
+  it('resets page to 1 when status filter is changed', async () => {
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: mockDevices, pages: 3 } })
+    })
+    render(<Devices />)
+    await waitFor(() => screen.getByText('Next'))
+    fireEvent.click(screen.getByText('Next'))
+    await waitFor(() => expect(screen.getByText('Page 2 of 3')).toBeInTheDocument())
+    const select = screen.getByRole('combobox')
+    fireEvent.change(select, { target: { value: 'online' } })
+    await waitFor(() => expect(screen.getByText('Page 1 of 3')).toBeInTheDocument())
+  })
+
+  it('updates search term and resets page to 1', async () => {
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: mockDevices, pages: 3 } })
+    })
+    render(<Devices />)
+    await waitFor(() => screen.getByText('Next'))
+    fireEvent.click(screen.getByText('Next'))
+    await waitFor(() => expect(screen.getByText('Page 2 of 3')).toBeInTheDocument())
+    const searchInput = screen.getByPlaceholderText(/Search by serial or hostname/)
+    fireEvent.change(searchInput, { target: { value: 'laptop' } })
+    await waitFor(() => expect(screen.getByText('Page 1 of 3')).toBeInTheDocument())
+  })
+
+  it('shows getStatusText Unknown for unrecognized status', async () => {
+    const weirdDevices = [{ ...mockDevices[0], status: 'weird' as any }]
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/stats')) return Promise.resolve({ data: mockStats })
+      return Promise.resolve({ data: { devices: weirdDevices, pages: 1 } })
+    })
+    render(<Devices />)
+    await waitFor(() => expect(screen.getByText('Unknown')).toBeInTheDocument())
+  })
+
+  it('shows client version when provided', async () => {
+    render(<Devices />)
+    await waitFor(() => expect(screen.getByText('v1.0.0')).toBeInTheDocument())
+  })
 })

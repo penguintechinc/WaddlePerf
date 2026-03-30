@@ -11,41 +11,35 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       thresholds: {
-        branches: 85,
-        functions: 75,
-        lines: 85,
-        statements: 85,
+        branches: 90,
+        functions: 90,
+        lines: 90,
+        statements: 90,
         // Per-file overrides for components with long-running network streaming loops
-        // that cannot be exercised in unit tests without real network I/O
+        // that cannot be exercised in unit tests without real network I/O.
+        // SpeedTest and DownloadTest use parallel fetch streams (Array.from async
+        // arrow functions) and inner while(true) ReadableStream reader loops.
+        // v8 counts each async arrow function as a separate "function" entity, so
+        // function coverage is structurally low regardless of /* v8 ignore */ pragmas.
+        // TraceTest.downloadDetailedResults uses Blob URL + DOM click chain (jsdom
+        // limitation) — function coverage is lower than line coverage for this reason.
         'src/components/SpeedTest.tsx': {
-          branches: 50,
-          functions: 30,
-          lines: 35,
-          statements: 35,
+          branches: 60,
+          functions: 40,
+          lines: 45,
+          statements: 45,
         },
         'src/components/DownloadTest.tsx': {
-          branches: 50,
-          functions: 50,
-          lines: 50,
-          statements: 50,
+          branches: 80,
+          functions: 55,
+          lines: 90,
+          statements: 90,
         },
         'src/components/TraceTest.tsx': {
-          branches: 60,
+          branches: 85,
           functions: 60,
-          lines: 60,
-          statements: 60,
-        },
-        'src/components/TestForm.tsx': {
-          branches: 77,
-          functions: 75,
-          lines: 96,
-          statements: 96,
-        },
-        'src/components/TestRunner.tsx': {
-          branches: 95,
-          functions: 70,
-          lines: 91,
-          statements: 91,
+          lines: 85,
+          statements: 85,
         },
       },
       exclude: [

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import TestForm from './TestForm'
@@ -157,5 +157,45 @@ describe('TestForm component', () => {
     render(<TestForm onTestStart={mockOnTestStart} isRunning={false} />)
     expect(screen.getByText(/Timeout:/)).toBeInTheDocument()
     expect(screen.getByText(/Count:/)).toBeInTheDocument()
+  })
+
+  it('shows validation error for invalid count', async () => {
+    const user = userEvent.setup()
+    render(<TestForm onTestStart={mockOnTestStart} isRunning={false} />)
+    const targetInput = screen.getByLabelText(/Target Host/i)
+    await user.type(targetInput, 'example.com')
+    const countInput = screen.getByLabelText(/^Count$/i)
+    await user.clear(countInput)
+    await user.type(countInput, '9999')
+    const form = document.querySelector('form')!
+    fireEvent.submit(form)
+    expect(screen.getByText(/Count cannot exceed/i)).toBeInTheDocument()
+  })
+
+  it('submits UDP test with empty dnsQuery trimmed to empty still sends testData without query', async () => {
+    const user = userEvent.setup()
+    render(<TestForm onTestStart={mockOnTestStart} isRunning={false} />)
+    await user.click(screen.getByText('UDP'))
+    const targetInput = screen.getByLabelText(/Target DNS Server/i)
+    await user.type(targetInput, '8.8.8.8')
+    // Ensure dnsQuery has a valid value (default is google.com) and submit
+    await user.click(screen.getByText('Start Test'))
+    await waitFor(() => expect(mockOnTestStart).toHaveBeenCalledOnce())
+    const callArgs = mockOnTestStart.mock.calls[0][0]
+    expect(callArgs.test_type).toBe('udp')
+    expect(callArgs.query).toBe('google.com')
+  })
+
+  it('switches to ICMP and submits successfully', async () => {
+    const user = userEvent.setup()
+    render(<TestForm onTestStart={mockOnTestStart} isRunning={false} />)
+    await user.click(screen.getByText('ICMP'))
+    const targetInput = screen.getByLabelText(/Target Host/i)
+    await user.type(targetInput, '8.8.8.8')
+    await user.click(screen.getByText('Start Test'))
+    await waitFor(() => expect(mockOnTestStart).toHaveBeenCalledOnce())
+    const callArgs = mockOnTestStart.mock.calls[0][0]
+    expect(callArgs.test_type).toBe('icmp')
+    expect(callArgs.target).toBe('8.8.8.8')
   })
 })
