@@ -86,6 +86,8 @@ pip-log.txt
 pip-delete-this-directory.txt
 .tox/
 .coverage
+coverage.xml
+coverage/
 .cache
 .pytest_cache/
 .mypy_cache/
