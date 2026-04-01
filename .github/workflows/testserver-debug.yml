@@ -1,4 +1,4 @@
-name: Debug Build Push V4
+name: Debug Build Push Minimal
 
 on:
   push:
@@ -56,11 +56,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v4
         with:
           context: ./testServer
           push: false
-          tags: testserver:${{ needs.metadata.outputs.tag }}
       - run: echo "Finished"
