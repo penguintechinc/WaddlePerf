@@ -1,4 +1,4 @@
-name: Debug Minimal Build
+name: Debug Build Independent
 
 on:
   push:
@@ -39,17 +39,11 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-  test:
-    runs-on: ubuntu-latest
-    needs: metadata
-    steps:
-      - run: echo "Test"
-
   build:
     name: Build and push
     runs-on: ubuntu-latest
-    needs: [metadata, test]
+    needs: metadata
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - run: echo "Build step running without docker setup"
+      - run: echo "Build step running"
