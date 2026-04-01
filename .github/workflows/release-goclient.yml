@@ -2,13 +2,13 @@ name: Build and Release goClient (DEPRECATED - moved to separate repo)
 
 on:
   workflow_dispatch:  # Manual trigger only
-  schedule:
-    - cron: '0 0 31 2 0'  # Never runs (invalid cron)
     inputs:
       version:
         description: 'Version to build (e.g., 4.0.0)'
         required: true
         default: 'dev'
+  schedule:
+    - cron: '0 0 31 2 0'  # Never runs (invalid cron - Feb 31st doesn't exist)
 
 env:
   REGISTRY: ghcr.io
