@@ -81,15 +81,15 @@ class ppingPerf:
             
         if self.testtype in ['http', 'quic', 'tls', 'icmp']:
             self.logger.info("Running test: %s" % self.testtype)
-            command = "pping %s %s"  % (self.testtype, self.dstHost)
-            result = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            command = ["pping", self.testtype, self.dstHost]
+            result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             stdout, _ = result.communicate()
             output = stdout
             results = self.parseHTTP(output)
         elif self.testtype == 'tcp':
             self.logger.info("Running TCP test: %s" % self.testtype)
-            command = "pping %s %s %s" % (self.testtype, self.dstHost, self.dstPort)
-            result = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            command = ["pping", self.testtype, self.dstHost, str(self.dstPort)]
+            result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             stdout, _ = result.communicate()
             output = stdout
             results = self.parseHTTP(output)

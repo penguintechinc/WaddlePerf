@@ -102,8 +102,7 @@ bin/
 *.exe
 *.test
 *.out
-*.mod
-*.sum
+# *.mod and *.sum should not be ignored
 vendor/
 coverage.out
 go-client/test-dist/

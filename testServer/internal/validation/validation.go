@@ -142,8 +142,7 @@ func ValidateTarget(target string) error {
 	   strings.HasPrefix(lowerHost, "10.") ||
 	   strings.HasPrefix(lowerHost, "192.168.") ||
 	   strings.HasPrefix(lowerHost, "172.16.") {
-		// Allow if explicitly configured to allow internal targets
-		// For now, we'll allow them but log a warning
+		return &ValidationError{"target", "access to internal or local network targets is prohibited"}
 	}
 
 	return nil

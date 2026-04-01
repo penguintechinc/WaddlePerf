@@ -1,5 +1,6 @@
 """Configuration module for managerServer API"""
 import os
+import secrets
 from datetime import timedelta
 from dataclasses import dataclass, field
 
@@ -10,9 +11,9 @@ class Config:
     def __post_init__(self):
         """Initialize config from environment variables at instance creation time."""
         # Server
-        self.SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-        self.JWT_SECRET = os.getenv('JWT_SECRET', 'dev-jwt-secret-change-in-production')
-        self.MANAGER_KEY = os.getenv('MANAGER_KEY', '0' * 64)
+        self.SECRET_KEY = os.getenv('SECRET_KEY', secrets.token_hex(32))
+        self.JWT_SECRET = os.getenv('JWT_SECRET', secrets.token_hex(32))
+        self.MANAGER_KEY = os.getenv('MANAGER_KEY', secrets.token_hex(32))
 
         # Database
         self.DB_HOST = os.getenv('DB_HOST', 'localhost')

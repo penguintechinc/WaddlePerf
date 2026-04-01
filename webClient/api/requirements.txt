@@ -2,20 +2,20 @@
 # Python 3.13 compatible
 
 # Flask framework
-Flask==3.1.0
-flask-cors==5.0.0
+Flask==3.1.1
+flask-cors==6.0.0
 flask-socketio==5.4.1
 
 # WebSocket support
-python-socketio==5.11.4
+python-socketio==5.14.0
 python-engineio==4.10.1
-eventlet==0.37.0
+eventlet==0.40.3
 
 # Database
 PyMySQL==1.1.1
 
 # HTTP client
-requests==2.32.3
+requests==2.32.4
 
 # Security
 bcrypt==4.2.1
