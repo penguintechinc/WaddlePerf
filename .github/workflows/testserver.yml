@@ -1,4 +1,4 @@
-name: Debug Build Job Fixed
+name: Debug Build Job Simple Tags
 
 on:
   push:
@@ -82,12 +82,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/penguintechinc/waddleperf-testserver
+          images: ghcr.io/penguintechinc/waddleperf-testserver
           tags: |
             type=raw,value=${{ needs.metadata.outputs.tag }}
-            type=raw,value=${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}
-            type=sha,prefix=${{ needs.metadata.outputs.tag }}-
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v5
