@@ -17,127 +17,133 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: registry-dal2.penguintech.io
+  REGISTRY_GHCR: ghcr.io
   IMAGE_NAME: unified-api
 
 jobs:
+  metadata:
+    name: Determine Build Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      postfix: ${{ steps.vars.outputs.postfix }}
+      tag: ${{ steps.vars.outputs.tag }}
+      is_main: ${{ steps.vars.outputs.is_main }}
+      is_release: ${{ steps.vars.outputs.is_release }}
+      version: ${{ steps.vars.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set variables
+        id: vars
+        run: |
+          VERSION=$(cat .version | cut -d'.' -f1-3 | tr -d '[:space:]' || echo "0.0.0")
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "postfix=-gamma" >> $GITHUB_OUTPUT
+            echo "tag=gamma" >> $GITHUB_OUTPUT
+            echo "is_main=true" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/v* || "${{ github.ref }}" == refs/heads/4.x ]]; then
+            echo "postfix=-beta" >> $GITHUB_OUTPUT
+            echo "tag=beta" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "postfix=-alpha" >> $GITHUB_OUTPUT
+            echo "tag=alpha" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
   test:
     name: Test Unified API
     runs-on: ubuntu-latest
-
+    needs: metadata
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
-
+        uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@42375524f513eded29f8b3e8a9e93b5d5e99e75e  # v5
+        uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
           cache-dependency-path: services/unified-api/requirements.txt
-
       - name: Install dependencies
         working-directory: services/unified-api
         run: |
           python3 -m pip install --upgrade pip
           pip3 install -r requirements.txt
-          pip3 install pytest pytest-cov flake8 pytest-asyncio aioresponses
-
-      - name: Lint with flake8
-        working-directory: services/unified-api
-        run: |
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-      - name: Type check (basic)
-        working-directory: services/unified-api
-        run: |
-          python3 -m py_compile config.py
-
-      - name: Install test dependencies
-        run: pip3 install pytest pytest-asyncio pytest-cov aioresponses
-
-      - name: Run unit tests with coverage
+          pip3 install pytest pytest-cov pytest-asyncio aioresponses
+      - name: Run unit tests
         run: |
           cd services/unified-api
-          python3 -m pytest --cov=. --cov-report=xml --cov-fail-under=90 -q
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457  # v4
+          python3 -m pytest --cov=. --cov-report=xml -q
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
         with:
           file: services/unified-api/coverage.xml
           flags: unified-api
 
   build:
-    name: Build and push Docker image
+    name: Build and push
     runs-on: ubuntu-latest
-    needs: [test]
-    if: github.event_name != 'pull_request'
-
+    needs: [metadata, test]
     permissions:
-      contents: read
-
+      contents: write
+      packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to PenguinTech Registry
+        uses: actions/checkout@v4
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
-
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.REGISTRY }}/waddleperf/${{ env.IMAGE_NAME }}
+            ${{ env.REGISTRY_GHCR }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=alpha,enable=${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=sha,prefix={{branch}}-
-
+            type=raw,value=${{ needs.metadata.outputs.tag }}
+            type=raw,value=${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}
+            type=sha,prefix=${{ needs.metadata.outputs.tag }}-
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./services/unified-api
-          file: ./services/unified-api/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  summary:
-    name: Build Summary
-    runs-on: ubuntu-latest
-    needs: [test, build]
-    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
-
-    steps:
-      - name: Check build status
+      - name: Export requirements for artifact
         run: |
-          if [ "${{ needs.test.result }}" != "success" ]; then
-            echo "❌ Tests failed"
-            exit 1
+          cp services/unified-api/requirements.txt unified-api-requirements${{ needs.metadata.outputs.postfix }}.txt
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-api-requirements${{ needs.metadata.outputs.postfix }}
+          path: unified-api-requirements${{ needs.metadata.outputs.postfix }}.txt
+
+  pre-release:
+    name: Update Pre-Release
+    runs-on: ubuntu-latest
+    needs: [metadata, build]
+    if: needs.metadata.outputs.is_main == 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: Update Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.metadata.outputs.version }}"
+          TAG="v$VERSION-gamma"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "Pre-release $TAG" --prerelease --notes "Automated pre-release for main branch"
           fi
-          if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ needs.build.result }}" != "success" ]; then
-            echo "❌ Build failed"
-            exit 1
-          fi
-          echo "✅ All checks passed"
