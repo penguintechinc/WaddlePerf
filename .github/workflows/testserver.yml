@@ -1,4 +1,4 @@
-name: Debug Independent Jobs
+name: Debug Independent Job
 
 on:
   push:
@@ -39,15 +39,9 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-  test:
-    runs-on: ubuntu-latest
-    needs: metadata
-    steps:
-      - run: echo "Test"
-
   build:
     name: Build and push
-    runs-What: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
