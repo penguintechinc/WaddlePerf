@@ -1,4 +1,4 @@
-name: Debug Meta Action
+name: Debug Meta Action Simple
 
 on:
   push:
@@ -61,6 +61,5 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: testserver
-          tags: |
-            type=raw,value=${{ needs.metadata.outputs.tag }}
+          tags: latest
       - run: echo "Finished"
