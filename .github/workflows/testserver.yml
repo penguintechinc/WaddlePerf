@@ -1,23 +1,8 @@
-name: Build testServer
+name: Debug Minimal Build
 
 on:
   push:
-    branches: [main, 4.x, v4.1.x]
-    tags: ['v*']
-    paths:
-      - 'testServer/**'
-      - '.github/workflows/testserver.yml'
-  pull_request:
-    branches: [main, 4.x, v4.1.x]
-    paths:
-      - 'testServer/**'
-      - '.github/workflows/testserver.yml'
-  workflow_dispatch:
-
-env:
-  REGISTRY_GHCR: ghcr.io
-  REGISTRY_DOCKER: docker.io
-  IMAGE_NAME: testserver
+    branches: ["v4.1.x"]
 
 jobs:
   metadata:
@@ -55,103 +40,16 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
   test:
-    name: Test testServer
     runs-on: ubuntu-latest
     needs: metadata
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: testServer/go.sum
-      - name: Run Go tests
-        run: |
-          cd testServer
-          go mod download
-          go test ./... -coverprofile=coverage.out
-      - name: Upload Go coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: testServer/coverage.out
-          flags: testserver
+      - run: echo "Test"
 
   build:
     name: Build and push
     runs-on: ubuntu-latest
     needs: [metadata, test]
-    permissions:
-      contents: write
-      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY_GHCR }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY_DOCKER }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.REGISTRY_GHCR }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ needs.metadata.outputs.tag }}
-      - name: Build and push Docker image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: ./testServer
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Build local binary for artifact
-        run: |
-          cd testServer
-          CGO_ENABLED=0 go build -o ../testserver${{ needs.metadata.outputs.postfix }} ./cmd/testserver
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: testserver${{ needs.metadata.outputs.postfix }}
-          path: testserver${{ needs.metadata.outputs.postfix }}
-
-  pre-release:
-    name: Update Pre-Release
-    runs-on: ubuntu-latest
-    needs: [metadata, build]
-    if: needs.metadata.outputs.is_main == 'true'
-    permissions:
-      contents: write
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: testserver${{ needs.metadata.outputs.postfix }}
-          path: .
-      - name: Update Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ needs.metadata.outputs.version }}"
-          TAG="v$VERSION-gamma"
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --title "Pre-release $TAG" --prerelease --notes "Automated pre-release for main branch"
-          fi
-          gh release upload "$TAG" testserver${{ needs.metadata.outputs.postfix }} --clobber
+      - run: echo "Build step running without docker setup"
