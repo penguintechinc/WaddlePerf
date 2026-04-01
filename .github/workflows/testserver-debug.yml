@@ -1,4 +1,4 @@
-name: Debug Simple Tags
+name: Debug Needs
 
 on:
   push:
@@ -43,36 +43,11 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-  test:
-    name: Test testServer
+  build:
+    name: Build and push
     runs-on: ubuntu-latest
     needs: metadata
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: testServer/go.sum
-      - name: Run Go tests
-        run: |
-          cd testServer
-          go mod download
-          go test ./... -coverprofile=coverage.out
-
-  build:
-    name: Build and push
-    runs-on: ubuntu-latest
-    needs: [metadata, test]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: testserver
-          tags: |
-            type=raw,value=${{ needs.metadata.outputs.tag }}
-      - run: echo "Meta tags: ${{ steps.meta.outputs.tags }}"
+      - run: echo "Metadata tag is ${{ needs.metadata.outputs.tag }}"
