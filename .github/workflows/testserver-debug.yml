@@ -1,4 +1,4 @@
-name: Debug Manual Tags
+name: Debug Meta Action
 
 on:
   push:
@@ -56,9 +56,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Manual Tags
-        run: |
-          TAG="${{ needs.metadata.outputs.tag }}"
-          FULL_TAG="${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}"
-          echo "TAG=$TAG"
-          echo "FULL_TAG=$FULL_TAG"
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: testserver
+          tags: |
+            type=raw,value=${{ needs.metadata.outputs.tag }}
+      - run: echo "Finished"
