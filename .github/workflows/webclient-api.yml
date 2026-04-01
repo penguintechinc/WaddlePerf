@@ -193,20 +193,3 @@ jobs:
           fi
           gh release upload "$TAG" webclient-api-requirements${{ needs.metadata.outputs.postfix }}.txt --clobber
 
-  summary:
-    name: Build Summary
-    runs-on: ubuntu-latest
-    needs: [test, build]
-    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    steps:
-      - name: Check build status
-        run: |
-          if [ "${{ needs.test.result }}" != "success" ]; then
-            echo "❌ Tests failed"
-            exit 1
-          fi
-          if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ needs.build.result }}" != "success" ]; then
-            echo "❌ Build failed"
-            exit 1
-          fi
-          echo "✅ All checks passed"
