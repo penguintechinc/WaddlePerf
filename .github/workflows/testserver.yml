@@ -1,4 +1,4 @@
-name: Debug Build Job
+name: Debug Build Job Fixed
 
 on:
   push:
@@ -83,7 +83,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ github.repository }}/testserver
+            ghcr.io/penguintechinc/waddleperf-testserver
           tags: |
             type=raw,value=${{ needs.metadata.outputs.tag }}
             type=raw,value=${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}
