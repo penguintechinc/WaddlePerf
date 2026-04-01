@@ -1,4 +1,4 @@
-name: Debug Build Job Single Line Tags
+name: Debug Manual Tags
 
 on:
   push:
@@ -56,10 +56,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/penguintechinc/waddleperf-testserver
-          tags: ${{ needs.metadata.outputs.tag }},${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}
-      - run: echo "Meta tags: ${{ steps.meta.outputs.tags }}"
+      - name: Manual Tags
+        run: |
+          TAG="${{ needs.metadata.outputs.tag }}"
+          FULL_TAG="${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}"
+          echo "TAG=$TAG"
+          echo "FULL_TAG=$FULL_TAG"
