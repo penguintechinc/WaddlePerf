@@ -2,14 +2,14 @@ name: Build webClient Frontend
 
 on:
   push:
-    branches: [main, 4.x]
+    branches: [main, 4.x, "v4.*"]
     tags: ['v*']
     paths:
       - 'webClient/frontend/**'
       - 'webClient/Dockerfile.frontend'
       - '.github/workflows/webclient-frontend.yml'
   pull_request:
-    branches: [main, 4.x]
+    branches: [main, 4.x, "v4.*"]
     paths:
       - 'webClient/frontend/**'
       - 'webClient/Dockerfile.frontend'

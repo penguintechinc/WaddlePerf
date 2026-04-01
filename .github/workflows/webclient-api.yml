@@ -2,14 +2,14 @@ name: Build webClient API
 
 on:
   push:
-    branches: [main, 4.x]
+    branches: [main, 4.x, "v4.*"]
     tags: ['v*']
     paths:
       - 'webClient/api/**'
       - 'webClient/Dockerfile.api'
       - '.github/workflows/webclient-api.yml'
   pull_request:
-    branches: [main, 4.x]
+    branches: [main, 4.x, "v4.*"]
     paths:
       - 'webClient/api/**'
       - 'webClient/Dockerfile.api'

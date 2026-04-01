@@ -2,14 +2,14 @@ name: Build Go Client with Docker
 
 on:
   push:
-    branches: [ main, v4.x, develop ]
+    branches: [ main, v4.x, "v4.*", develop ]
     paths:
-      - 'go-client/**'
+      - 'goClient/**'
       - '.github/workflows/build-go-client.yml'
   pull_request:
-    branches: [ main, v4.x ]
+    branches: [ main, v4.x, "v4.*" ]
     paths:
-      - 'go-client/**'
+      - 'goClient/**'
       - '.github/workflows/build-go-client.yml'
   release:
     types: [created]
@@ -81,12 +81,12 @@ jobs:
 
     - name: Run tests (Linux AMD64 only)
       if: matrix.platform == 'linux/amd64'
-      working-directory: ./go-client
+      working-directory: ./goClient
       run: |
         echo "Running tests for native platform..."
         docker buildx build \
-          --file Dockerfile.build \
-          --target tester \
+          --file Dockerfile \
+          --target builder \
           --platform ${{ matrix.platform }} \
           --build-arg "TARGETOS=${{ steps.meta.outputs.OS }}" \
           --build-arg "TARGETARCH=${{ steps.meta.outputs.ARCH }}" \
@@ -96,12 +96,12 @@ jobs:
           .
 
     - name: Build binary with Docker
-      working-directory: ./go-client
+      working-directory: ./goClient
       run: |
         echo "Building binary for ${{ matrix.platform }}..."
         docker buildx build \
-          --file Dockerfile.build \
-          --target extractor \
+          --file Dockerfile \
+          --target builder \
           --platform ${{ matrix.platform }} \
           --build-arg "TARGETOS=${{ steps.meta.outputs.OS }}" \
           --build-arg "TARGETARCH=${{ steps.meta.outputs.ARCH }}" \
@@ -131,7 +131,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.meta.outputs.OUTPUT_NAME }}
-        path: go-client/dist/${{ steps.meta.outputs.OUTPUT_NAME }}
+        path: goClient/dist/${{ steps.meta.outputs.OUTPUT_NAME }}
         retention-days: 7
 
   build-macos-universal:
@@ -234,7 +234,7 @@ jobs:
           org.opencontainers.image.licenses=MIT
 
     - name: Prepare Docker context
-      working-directory: ./go-client
+      working-directory: ./goClient
       run: |
         echo "Preparing Docker build context..."
         
@@ -298,8 +298,8 @@ jobs:
     - name: Build and push Docker images
       uses: docker/build-push-action@v5
       with:
-        context: ./go-client
-        file: ./go-client/Dockerfile.runtime
+        context: ./goClient
+        file: ./goClient/Dockerfile.runtime
         platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}

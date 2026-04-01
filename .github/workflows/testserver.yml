@@ -2,13 +2,13 @@ name: Build testServer
 
 on:
   push:
-    branches: [main, 4.x]
+    branches: [main, 4.x, "v4.*"]
     tags: ['v*']
     paths:
       - 'testServer/**'
       - '.github/workflows/testserver.yml'
   pull_request:
-    branches: [main, 4.x]
+    branches: [main, 4.x, "v4.*"]
     paths:
       - 'testServer/**'
       - '.github/workflows/testserver.yml'
