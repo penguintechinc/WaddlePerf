@@ -1,12 +1,8 @@
-name: Debug Needs Check
+name: Debug Independent Jobs
 
 on:
   push:
     branches: ["v4.1.x"]
-
-permissions:
-  contents: write
-  packages: write
 
 jobs:
   metadata:
@@ -16,7 +12,7 @@ jobs:
       postfix: ${{ steps.vars.outputs.postfix }}
       tag: ${{ steps.vars.outputs.tag }}
       is_main: ${{ steps.vars.outputs.is_main }}
-      is_release: ${{ steps.vars.outputs.is_release }}
+      is_release: ${{ steps.vars.outputs.is_main }}
       version: ${{ steps.vars.outputs.version }}
     steps:
       - name: Checkout code
@@ -51,5 +47,8 @@ jobs:
 
   build:
     name: Build and push
-    runs-
-... # The rest of the file content is omitted for brevity.
+    runs-What: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - run: echo "Build step running"
