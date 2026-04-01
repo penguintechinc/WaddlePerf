@@ -137,7 +137,8 @@ def get_db_connection():
     db = DAL(
         db_uri,
         pool_size=pool_size,     # Reuse connections
-        migrate=True,             # Auto-create tables if missing
+        migrate=False,            # Alembic manages schema; PyDAL only queries
+        fake_migrate=False,       # No fake migrations
         check_reserved=['all'],
         lazy_tables=True
     )
@@ -148,8 +149,7 @@ def get_db_connection():
         Field('password', 'password'),
         Field('active', 'boolean', default=True),
         Field('fs_uniquifier', 'string', unique=True),
-        Field('confirmed_at', 'datetime'),
-        migrate=True
+        Field('confirmed_at', 'datetime')
     )
 
     return db
@@ -221,7 +221,7 @@ thread_local = threading.local()
 
 def get_thread_db():
     if not hasattr(thread_local, 'db'):
-        thread_local.db = DAL(db_uri)  # Each thread gets its own
+        thread_local.db = DAL(db_uri, migrate=False, fake_migrate=False)  # Each thread gets its own
     return thread_local.db
 
 def worker():
@@ -314,11 +314,9 @@ print(f"Connecting to: {db_uri}")  # What does it look like?
 
 ### Problem: "Table already exists" error
 
-**Solution:** This is usually harmless. It means the table was created on a previous run.
-```python
-# This is safe - PyDAL won't recreate if it already exists
-db = DAL(db_uri, migrate=True)
-```
+**Solution:** With `migrate=False` (which is required), PyDAL never touches schema—it only queries existing tables. Tables are managed exclusively by Alembic/SQLAlchemy. "Table already exists" errors don't occur from PyDAL because it never issues DDL statements.
+
+If you see this error, it's coming from your schema initialization code (SQLAlchemy), not from PyDAL at runtime.
 
 ### Problem: "Too many connections"
 
@@ -374,7 +372,8 @@ def get_galera_db():
     db = DAL(
         db_uri,
         pool_size=int(os.getenv('DB_POOL_SIZE', '10')),
-        migrate=True,
+        migrate=False,            # Alembic manages schema; PyDAL only queries
+        fake_migrate=False,       # No fake migrations
         check_reserved=['all'],
         lazy_tables=True,
         driver_args={'charset': 'utf8mb4'}  # Galera requirement
@@ -465,13 +464,207 @@ def get_users():
 
 ---
 
+## Migrations: Deploy Before New Code
+
+**Database migrations MUST be applied before deploying new code to any environment.**
+
+**Why:** Schema mismatches between code and database cause runtime errors. Always run migrations first, then deploy the application.
+
+```bash
+# Production deployment checklist:
+1. Apply migrations:   ./scripts/migrate.sh <environment>
+2. Wait for completion (database is updated)
+3. Deploy new code:    make deploy-<environment>
+4. Verify health:      ./scripts/health-check.sh <environment>
+```
+
+**In Kubernetes:** Use an init container or Job to apply migrations before the main application Pod starts.
+
+---
+
+## Alembic Migrations: Never Run Automatically
+
+**`alembic upgrade head` must be run manually — never inside application startup code.**
+
+SQLAlchemy's `Base.metadata.create_all()` is fine at startup (it's idempotent and only creates missing tables). But calling `alembic upgrade head` from within `create_app()` or any startup function is forbidden.
+
+**Why:**
+- Multiple pods starting simultaneously will race to run migrations → deadlocks and partial schema states
+- A failed migration crashes the app and requires manual database recovery
+- Migrations should be observable, reversible operator actions
+
+**Instead, run migrations as a Kubernetes init container or Job before pods start:**
+
+```bash
+# Run migrations before deploying new code
+./scripts/migrate.sh              # upgrade head (default)
+./scripts/migrate.sh current      # check current revision
+./scripts/migrate.sh downgrade -1 # roll back one step
+```
+
+**In your startup code:**
+```python
+# ✅ OK at startup — idempotent, only creates missing tables
+init_sqlalchemy_tables(app)  # calls Base.metadata.create_all()
+init_pydal(app)              # PyDAL connection only, migrate=False
+
+# ❌ NEVER in startup — causes race conditions and hard-to-recover failures
+run_alembic_migrations(app)  # DO NOT DO THIS
+```
+
+---
+
+## Per-Service Database Accounts (Mandatory)
+
+Every microservice and container **must have its own database account** with fine-grained permissions. You're not creating separate databases—all services share one database, but each gets separate credentials scoped to only the tables and operations it needs.
+
+**Reference implementation:** Check out Waddlebot (`~/code/waddlebot`) for a real example. It uses 34+ module-specific accounts with RLS (Row-Level Security) policies and column-level grants on shared tables.
+
+### The Strategy
+
+| Principle | What to Do |
+|-----------|-----------|
+| **Separate tables per service** | Preferred — each service owns its tables where possible (backend-api owns users/sessions, connector owns integrations/webhooks) |
+| **Shared tables when needed** | Acceptable if unavoidable — protect with RLS policies or column-level grants so services only see their data |
+| **Per-service credentials** | Mandatory — each container reads its own `DB_USER` and `DB_PASS` from environment variables |
+| **Cache/Redis accounts** | Same pattern — per-service credentials for caching layers |
+| **Migration accounts** | Separate admin account used ONLY for schema changes, NEVER at runtime |
+
+### Access Levels
+
+What permissions each type of service needs:
+
+| Level | Permissions | When to Use |
+|-------|-------------|------------|
+| Read-only | `SELECT` only | Services that only query data (analytics, reporting, read replicas) |
+| Read-write | `SELECT, INSERT, UPDATE, DELETE` | Services that manage their own data |
+| Scoped read-write | Read-write + RLS policies | Services sharing tables but restricted to specific rows (e.g., platform-scoped data) |
+| Admin | `ALL` + DDL | Migration runners only — never used by runtime services |
+
+### Example: Creating Per-Service Accounts
+
+Here's what it looks like in SQL. Each service gets its own user with exactly the permissions it needs:
+
+```sql
+-- Backend API service (read-write on its tables)
+CREATE USER 'backend-api-rw' IDENTIFIED BY '${BACKEND_API_DB_PASS}';
+GRANT SELECT, INSERT, UPDATE, DELETE ON app_db.users TO 'backend-api-rw';
+GRANT SELECT, INSERT, UPDATE, DELETE ON app_db.sessions TO 'backend-api-rw';
+GRANT SELECT, INSERT, UPDATE, DELETE ON app_db.settings TO 'backend-api-rw';
+
+-- Connector service (read-write on its tables)
+CREATE USER 'connector-rw' IDENTIFIED BY '${CONNECTOR_DB_PASS}';
+GRANT SELECT, INSERT, UPDATE, DELETE ON app_db.integrations TO 'connector-rw';
+GRANT SELECT, INSERT, UPDATE, DELETE ON app_db.webhooks TO 'connector-rw';
+
+-- Analytics service (read-only on shared tables)
+CREATE USER 'analytics-ro' IDENTIFIED BY '${ANALYTICS_DB_PASS}';
+GRANT SELECT ON app_db.users TO 'analytics-ro';
+GRANT SELECT ON app_db.sessions TO 'analytics-ro';
+GRANT SELECT ON app_db.events TO 'analytics-ro';
+
+-- Shared platform integrations table with Row-Level Security (PostgreSQL)
+ALTER TABLE platform_integrations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY twitch_platform_policy ON platform_integrations
+  FOR ALL TO 'twitch-trigger'
+  USING (platform = 'twitch');
+
+CREATE POLICY discord_platform_policy ON platform_integrations
+  FOR ALL TO 'discord-trigger'
+  USING (platform = 'discord');
+
+-- Migration runner account (admin, for schema changes only)
+CREATE USER 'migrate-admin' IDENTIFIED BY '${MIGRATE_DB_PASS}';
+GRANT ALL ON app_db.* TO 'migrate-admin';
+```
+
+### Each Container Gets Its Own Credentials
+
+In your Kubernetes manifests (Secrets or ConfigMaps), pass different credentials to each service:
+
+```bash
+# Backend API container
+DB_USER=backend-api-rw
+DB_PASS=<secret-backend-api>
+
+# Connector container
+DB_USER=connector-rw
+DB_PASS=<secret-connector>
+
+# Analytics container
+DB_USER=analytics-ro
+DB_PASS=<secret-analytics>
+
+# Migration jobs only
+DB_USER=migrate-admin
+DB_PASS=<secret-admin>
+```
+
+### Benefits
+
+✅ **Security:** Services can't access tables they don't need
+✅ **Compliance:** Easy audit trail of who accessed what
+✅ **Isolation:** One compromised service doesn't give access to everything
+✅ **Least privilege:** Each service has minimal required permissions
+
+### Per-Service Cache (Redis/Valkey) Accounts
+
+Apply the same security model to your caching layer. Each service gets separate Redis/Valkey credentials with ACL restrictions on key prefixes.
+
+**Key prefix convention:** `{service-name}:{key}` (e.g., `backend-api:users`, `connector:webhooks`)
+
+```bash
+# Redis/Valkey ACL setup for per-service cache isolation
+# Backend API (read-write on backend-api:* keys)
+ACL SETUSER backend-api-cache on >api_cache_pass +@all ~backend-api:*
+
+# Connector (read-write on connector:* keys)
+ACL SETUSER connector-cache on >connector_cache_pass +@all ~connector:*
+
+# Analytics (read-only on analytics:* keys)
+ACL SETUSER analytics-cache on >analytics_cache_pass +@read ~analytics:*
+```
+
+Each container gets its own `CACHE_USER` and `CACHE_PASS`:
+
+```bash
+# Backend API container
+CACHE_USER=backend-api-cache
+CACHE_PASS=<secret-api>
+
+# Analytics container (read-only)
+CACHE_USER=analytics-cache
+CACHE_PASS=<secret-analytics>
+```
+
+**Blast radius:** One compromised container accessing only its key prefix means data from other services remains protected. Read-only services get `+@read` only, not `+@all`.
+
+---
+
+## Future: penguin-dal (Next Major Version)
+
+At a service's **next major version bump**, migrate from the PyDAL + SQLAlchemy dual-library pattern to `penguin-dal`:
+
+```bash
+pip install penguin-dal
+```
+
+`penguin-dal` is a PyDAL-style API built on top of SQLAlchemy that eliminates the need to define schema twice. It supports both runtime queries and Alembic migrations from a single table definition, plus native async support.
+
+**When to migrate:** Only at the next major version bump (e.g., `1.x → 2.0`). Do not force a mid-release migration.
+
+---
+
 ## Summary: Database Recipe
 
 1. **Setup Once:** Use SQLAlchemy to define your schema
-2. **Query Always:** Use PyDAL for all runtime operations
+2. **Query Always:** Use PyDAL for all runtime operations (with `migrate=False`)
 3. **Use Environment Variables:** Never hardcode database settings
 4. **Wait for Database:** Implement retry logic on startup
 5. **Thread Safety:** Each thread gets its own connection
 6. **Pool Your Connections:** Formula is (2 × CPU cores) + spindles
+7. **Migrations First:** Always apply migrations before deploying new code (manually, not in startup)
+8. **Per-Service Accounts:** Each microservice gets its own database credentials with minimal required permissions
 
 **Your data is safe, fast, and ready to scale!** 🚀
