@@ -1,19 +1,11 @@
-name: Build Go Client with Docker
+name: Build Go Client with Docker (DEPRECATED - moved to separate repo)
 
 on:
   push:
-    branches: [ main, v4.x, develop ]
-    paths:
-      - 'go-client/**'
-      - '.github/workflows/build-go-client.yml'
+    branches: [ 'archived-workflow-disabled' ]  # DISABLED: goClient moved to separate repository
   pull_request:
-    branches: [ main, v4.x ]
-    paths:
-      - 'go-client/**'
-      - '.github/workflows/build-go-client.yml'
-  release:
-    types: [created]
-  workflow_dispatch:
+    branches: [ 'archived-workflow-disabled' ]  # DISABLED: goClient moved to separate repository
+  workflow_dispatch:  # Can still be triggered manually if needed
 
 env:
   REGISTRY: ghcr.io
