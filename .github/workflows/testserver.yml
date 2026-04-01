@@ -1,8 +1,8 @@
-name: Debug Build Job Step 0.5
+name: Debug Build Job Quoted Branch
 
 on:
   push:
-    branches: [v4.1.x]
+    branches: ["v4.1.x"]
 
 permissions:
   contents: write
