@@ -138,6 +138,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: unified-api-requirements${{ needs.metadata.outputs.postfix }}
+          path: .
       - name: Update Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -147,3 +152,4 @@ jobs:
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --title "Pre-release $TAG" --prerelease --notes "Automated pre-release for main branch"
           fi
+          gh release upload "$TAG" unified-api-requirements${{ needs.metadata.outputs.postfix }}.txt --clobber

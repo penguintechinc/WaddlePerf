@@ -22,16 +22,50 @@ env:
   IMAGE_NAME: managerserver-api
 
 jobs:
+  metadata:
+    name: Determine Build Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      postfix: ${{ steps.vars.outputs.postfix }}
+      tag: ${{ steps.vars.outputs.tag }}
+      is_main: ${{ steps.vars.outputs.is_main }}
+      is_release: ${{ steps.vars.outputs.is_release }}
+      version: ${{ steps.vars.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set variables
+        id: vars
+        run: |
+          VERSION=$(cat .version | cut -d'.' -f1-3 | tr -d '[:space:]' || echo "0.0.0")
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "postfix=-gamma" >> $GITHUB_OUTPUT
+            echo "tag=gamma" >> $GITHUB_OUTPUT
+            echo "is_main=true" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/v* || "${{ github.ref }}" == refs/heads/4.x ]]; then
+            echo "postfix=-beta" >> $GITHUB_OUTPUT
+            echo "tag=beta" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "postfix=-alpha" >> $GITHUB_OUTPUT
+            echo "tag=alpha" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
   test:
     name: Test Flask API
     runs-on: ubuntu-latest
-
+    needs: metadata
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@42375524f513eded29f8b3e8a9e93b5d5e99e75e  # v5
+        uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
@@ -57,33 +91,29 @@ jobs:
         run: |
           python3 -m py_compile app.py
 
-      - name: Install test dependencies
-        run: pip3 install pytest pytest-asyncio pytest-cov aioresponses
-
       - name: Run unit tests with coverage
         run: |
           cd managerServer/api
           python3 -m pytest --cov=. --cov-report=xml --cov-fail-under=90 -q
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457  # v4
+        uses: codecov/codecov-action@v4
         with:
           file: managerServer/api/coverage.xml
           flags: managerserver-api
 
   build:
-    name: Build and push Docker image
+    name: Build and push
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [metadata, test]
     if: github.event_name != 'pull_request'
-
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -91,7 +121,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY_GHCR }}
@@ -113,12 +143,9 @@ jobs:
             ${{ env.REGISTRY_GHCR }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
             ${{ env.REGISTRY_DOCKER }}/penguincloud/waddleperf-${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=alpha,enable=${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=${{ needs.metadata.outputs.tag }}
+            type=raw,value=${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}
+            type=sha,prefix=${{ needs.metadata.outputs.tag }}-
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -132,12 +159,45 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Export requirements for artifact
+        run: |
+          cp managerServer/api/requirements.txt managerserver-api-requirements${{ needs.metadata.outputs.postfix }}.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: managerserver-api-requirements${{ needs.metadata.outputs.postfix }}
+          path: managerserver-api-requirements${{ needs.metadata.outputs.postfix }}.txt
+
+  pre-release:
+    name: Update Pre-Release
+    runs-on: ubuntu-latest
+    needs: [metadata, build]
+    if: needs.metadata.outputs.is_main == 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: managerserver-api-requirements${{ needs.metadata.outputs.postfix }}
+          path: .
+      - name: Update Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.metadata.outputs.version }}"
+          TAG="v$VERSION-gamma"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "Pre-release $TAG" --prerelease --notes "Automated pre-release for main branch"
+          fi
+          gh release upload "$TAG" managerserver-api-requirements${{ needs.metadata.outputs.postfix }}.txt --clobber
+
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
     needs: [test, build]
     if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
-
     steps:
       - name: Check build status
         run: |
