@@ -3,15 +3,8 @@ name: Build testServer
 on:
   push:
     branches: [main, 4.x, v4.1.x]
-    tags: ['v*']
-    paths:
-      - 'testServer/**'
-      - '.github/workflows/testserver.yml'
   pull_request:
     branches: [main, 4.x, v4.1.x]
-    paths:
-      - 'testServer/**'
-      - '.github/workflows/testserver.yml'
   workflow_dispatch:
 
 env:
