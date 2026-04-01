@@ -1,4 +1,4 @@
-name: Debug Build Job Simple
+name: Debug Build Job Single Line Tags
 
 on:
   push:
@@ -61,7 +61,5 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/penguintechinc/waddleperf-testserver
-          tags: |
-            type=raw,value=${{ needs.metadata.outputs.tag }}
-            type=raw,value=${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}
+          tags: ${{ needs.metadata.outputs.tag }},${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}
       - run: echo "Meta tags: ${{ steps.meta.outputs.tags }}"
