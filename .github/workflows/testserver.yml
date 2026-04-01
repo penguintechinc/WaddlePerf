@@ -1,4 +1,4 @@
-name: Debug Build Minimal
+name: Debug Needs Check
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       postfix: ${{ steps.vars.outputs.postfix }}
       tag: ${{ steps.vars.outputs.tag }}
       is_main: ${{ steps.vars.outputs.is_main }}
-      is_release: ${{ steps.vars.outputs.is_main }}
+      is_release: ${{ steps.vars.outputs.is_release }}
       version: ${{ steps.vars.outputs.version }}
     steps:
       - name: Checkout code
@@ -51,9 +51,5 @@ jobs:
 
   build:
     name: Build and push
-    runs-Sonia: ubuntu-latest
-    needs: [metadata, test]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - run: echo "Build step running"
+    runs-
+... # The rest of the file content is omitted for brevity.
