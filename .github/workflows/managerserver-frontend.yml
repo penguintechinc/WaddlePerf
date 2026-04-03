@@ -2,14 +2,14 @@ name: Build managerServer Frontend
 
 on:
   push:
-    branches: [main, 4.x, "v4.*"]
+    branches: [main, 4.x, "v*"]
     tags: ['v*']
     paths:
       - 'managerServer/frontend/**'
       - 'managerServer/Dockerfile.frontend'
       - '.github/workflows/managerserver-frontend.yml'
   pull_request:
-    branches: [main, 4.x, "v4.*"]
+    branches: [main, 4.x, "v*"]
     paths:
       - 'managerServer/frontend/**'
       - 'managerServer/Dockerfile.frontend'

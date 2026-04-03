@@ -2,13 +2,13 @@ name: Build containerClient
 
 on:
   push:
-    branches: [main, 4.x, "v4.*"]
+    branches: [main, 4.x, "v*"]
     tags: ['v*']
     paths:
       - 'containerClient/**'
       - '.github/workflows/containerclient.yml'
   pull_request:
-    branches: [main, 4.x, "v4.*"]
+    branches: [main, 4.x, "v*"]
     paths:
       - 'containerClient/**'
       - '.github/workflows/containerclient.yml'
