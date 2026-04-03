@@ -101,7 +101,6 @@ jobs:
     name: Build and push
     runs-on: ubuntu-latest
     needs: [metadata, test]
-    if: github.event_name != 'pull_request'
     permissions:
       contents: write
       packages: write
