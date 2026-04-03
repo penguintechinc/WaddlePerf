@@ -1,9 +1,47 @@
 name: Testserver Build Up
 on:
   push:
-    branches: [ "v4.1.x" ] # Use explicit quoting for safety
+    branches: [ "v4.1.x" ]
 jobs:
+  metadata:
+    name: Determine Build Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      postfix: ${{ steps.vars.outputs.postfix }}
+      tag: ${{ steps.vars.outputs.tag }}
+      is_main: ${{ steps.vars.outputs.is_main }}
+      is_release: ${{ steps.vars.outputs.is_release }}
+      version: ${{ steps.vars.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set versioning variables
+        id: vars
+        run: |
+          VERSION=$(cat .version | cut -d'.' -f1-3 | tr -d '[:space:]' || echo "0.0.0")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "postfix=-gamma" >> $GITHUB_OUTPUT
+            echo "tag=gamma" >> $GITHUB_OUTPUT
+            echo "is_main=true" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref_name }}" == v* || "${{ github.ref_name }}" == "4.x" ]]; then
+            echo "postfix=-beta" >> $GITHUB_OUTPUT
+            echo "tag=beta" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "postfix=-alpha" >> $GITHUB_OUTPUT
+            echo "tag=alpha" >> $GITHUB_OUTPUT
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
   debug:
     runs-on: ubuntu-latest
+    needs: metadata
     steps:
-      - run: echo "Minimal workflow triggered and ran successfully."
+      - name: Show Metadata
+        run: |
+          echo "Version: ${{ needs.metadata.outputs.version }}"
+          echo "Postfix: ${{ needs.metadata.outputs.postfix }}"
+          echo "Tag: ${{ needs.metadata.outputs.tag }}"
