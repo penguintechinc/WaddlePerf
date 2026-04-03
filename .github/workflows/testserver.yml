@@ -2,7 +2,7 @@ name: Build testServer
 
 on:
   push:
-    branches: [main, 4.x, 'v*']
+    branches: [main, 4.x]
     tags: ['v*']
     paths:
       - 'testServer/**'
@@ -20,32 +20,6 @@ env:
   IMAGE_NAME: testserver
 
 jobs:
-  metadata:
-    name: Determine Version and Tag
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
-      postfix: ${{ steps.version.outputs.postfix }}
-
-    steps:
-      - name: Determine Version and Tag
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "version=latest" >> $GITHUB_OUTPUT
-            echo "tag=gamma" >> $GITHUB_OUTPUT
-            echo "postfix=-gamma" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "version=${{ github.ref#refs/tags/ }}" >> $GITHUB_OUTPUT
-            echo "tag=beta" >> $GITHUB_OUTPUT
-            echo "postfix=-beta" >> $GITHUB_OUTPUT
-          else
-            echo "version=latest" >> $GITHUB_OUTPUT
-            echo "tag=alpha" >> $GITHUB_OUTPUT
-            echo "postfix=-alpha" >> $GITHUB_OUTPUT
-          fi
-
   test:
     name: Test testServer
     runs-on: ubuntu-latest
@@ -79,7 +53,7 @@ jobs:
   build:
     name: Build and push Docker images
     runs-on: ubuntu-latest
-    needs: [metadata, test]
+    needs: test
     if: github.event_name != 'pull_request'
 
     permissions:
@@ -118,8 +92,12 @@ jobs:
             ${{ env.REGISTRY_GHCR }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
             ${{ env.REGISTRY_DOCKER }}/penguincloud/waddleperf-${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ needs.metadata.outputs.version }}${{ needs.metadata.outputs.postfix }}
-            type=raw,value=${{ needs.metadata.outputs.tag }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=alpha,enable=${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -134,43 +112,11 @@ jobs:
           build-args: |
             TARGETOS=linux
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.IMAGE_NAME }}${{ needs.metadata.outputs.postfix }}
-          path: ./testServer
-
-  pre-release:
-    name: Create or update pre-release
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
-
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.IMAGE_NAME }}-gamma
-          path: ./
-
-      - name: Create or update pre-release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: gamma
-          name: Gamma Release
-          body: "Continuous build from main branch."
-          prerelease: true
-          files: |
-            ${{ env.IMAGE_NAME }}-gamma
-
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [test, build, pre-release]
-    if: always()
+    needs: [test, build]
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
 
     steps:
       - name: Check build status
@@ -181,10 +127,6 @@ jobs:
           fi
           if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ needs.build.result }}" != "success" ]; then
             echo "❌ Build failed"
-            exit 1
-          fi
-          if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "${{ needs.pre-release.result }}" != "success" ]; then
-            echo "❌ Pre-release failed"
             exit 1
           fi
           echo "✅ All checks passed"
