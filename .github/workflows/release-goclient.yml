@@ -1,20 +1,14 @@
-name: Build and Release goClient
+name: Build and Release goClient (DEPRECATED - moved to separate repo)
 
 on:
-  push:
-    branches:
-      - '**'
-    paths:
-      - 'goClient/**'
-      - '.github/workflows/release-goclient.yml'
-  release:
-    types: [created, published]
-  workflow_dispatch:
+  workflow_dispatch:  # Manual trigger only
     inputs:
       version:
         description: 'Version to build (e.g., 4.0.0)'
         required: true
         default: 'dev'
+  schedule:
+    - cron: '0 0 31 2 0'  # Never runs (invalid cron - Feb 31st doesn't exist)
 
 env:
   REGISTRY: ghcr.io
