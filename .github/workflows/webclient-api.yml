@@ -2,8 +2,7 @@ name: Build webClient API
 
 on:
   push:
-    branches: [main, 4.x]
-    tags: ['v*']
+    branches: [main, 4.x, v*]
     paths:
       - 'webClient/api/**'
       - 'webClient/Dockerfile.api'
@@ -22,6 +21,22 @@ env:
   IMAGE_NAME: webclient-api
 
 jobs:
+  metadata:
+    name: Generate Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semver.outputs.version }}
+      postfix: ${{ steps.semver.outputs.postfix }}
+      tag: ${{ steps.semver.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Generate version
+        id: semver
+        uses: penguin-actions/semver@v1.0.1
+        with:
+          version-file: .version
+
   test:
     name: Test Flask API
     runs-on: ubuntu-latest
@@ -60,7 +75,7 @@ jobs:
   build:
     name: Build and push Docker image
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [metadata, test]
     if: github.event_name != 'pull_request'
 
     permissions:
@@ -99,12 +114,10 @@ jobs:
             ${{ env.REGISTRY_GHCR }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
             ${{ env.REGISTRY_DOCKER }}/penguincloud/waddleperf-${{ env.IMAGE_NAME }}
           tags: |
+            type=raw,value=${{ needs.metadata.outputs.version }},enable=${{ !startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=${{ needs.metadata.outputs.tag }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=alpha,enable=${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=${{ needs.metadata.outputs.postfix }},enable=${{ !startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -118,10 +131,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  pre-release:
+    name: Create Pre-release
+    runs-on: ubuntu-latest
+    needs: [metadata, build]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Create or update pre-release
+        uses: penguin-actions/pre-release@v1.0.2
+        with:
+          version: ${{ needs.metadata.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [test, build]
+    needs: [test, build, pre-release]
     if: always()
 
     steps:
@@ -133,6 +160,10 @@ jobs:
           fi
           if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ needs.build.result }}" != "success" ]; then
             echo "❌ Build failed"
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ needs.pre-release.result }}" != "success" ] && [ "${{ needs.pre-release.result }}" != "skipped" ]; then
+            echo "❌ Pre-release failed"
             exit 1
           fi
           echo "✅ All checks passed"
