@@ -187,7 +187,7 @@ kubectl port-forward --context local-alpha svc/flask-backend 5000:5000 &
 # Login and get a token
 curl -X POST http://localhost:5000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"admin"}'
+  -d '{"email":"admin@localhost.local","password":"admin123"}'
 
 # Use token to get users
 curl -X GET http://localhost:5000/api/v1/users \
@@ -375,13 +375,29 @@ All database drivers are built in via PyDAL. It "just works."
 
 ## 📈 Scaling: Simple Edition
 
-### Vertical Scaling (Make One Container Bigger)
+### Vertical Scaling (Increase a Container's Resources)
+
+Edit the resource limits in your Kustomize overlay or Helm values:
+
 ```bash
-# Give Flask more resources
-docker update --cpus="2" --memory="2g" flask-backend
+# Patch resource limits on a running deployment
+kubectl --context local-alpha patch deployment flask-backend -n myapp \
+  -p '{"spec":{"template":{"spec":{"containers":[{"name":"flask-backend","resources":{"requests":{"cpu":"500m","memory":"512Mi"},"limits":{"cpu":"2","memory":"2Gi"}}}]}}}}'
 ```
 
-Works for small growth, then you hit a wall.
+Or update your Helm values and redeploy:
+```yaml
+# values-prod.yaml
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+```
+
+Works for small growth — when you need more, add replicas instead.
 
 ### Horizontal Scaling (Add More Pods)
 
@@ -460,6 +476,54 @@ cache = Redis(host='redis', port=6379)  # Resolves via K8s DNS
 - **Giant dataset?** Shard across databases (app-level or database-level)
 
 **Start simple, scale when needed.**
+
+---
+
+## Desktop / Endpoint Clients
+
+**All desktop and endpoint client functionality is centralized in the Penguin desktop application** (`~/code/penguin/services/desktop/`). Individual projects do **NOT** build their own desktop clients.
+
+```
+┌─────────────────────────────────────────────────┐
+│           🐧 Penguin Desktop App                │
+│         (Go + Fyne, cross-platform)             │
+│                                                 │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐     │
+│  │ Module A  │ │ Module B  │ │ Module C  │ ... │
+│  │(Project X)│ │(Project Y)│ │(Project Z)│     │
+│  └───────────┘ └───────────┘ └───────────┘     │
+│       ↑              ↑              ↑           │
+│       └──── net/rpc over stdin/stdout ──────┘   │
+│                                                 │
+│  Host: windowing, tray, updates, crash recovery │
+└─────────────────────────────────────────────────┘
+         ↕ HTTPS/REST to project backends
+```
+
+### How It Works
+
+Each project that needs a desktop/endpoint presence contributes a **plugin module** to the Penguin app rather than building a standalone client. Modules are separate Go binaries that communicate with the host via HashiCorp go-plugin (net/rpc over stdin/stdout). The host handles:
+
+- Cross-platform windowing and system tray (Fyne)
+- Crash recovery with progressive backoff restart
+- Shared authentication and update mechanisms
+- Declarative UI rendering (modules describe widget trees, host renders)
+
+### Adding Your Project's Module
+
+1. Create a new module binary in `~/code/penguin/services/desktop/cmd/modules/penguin-mod-{name}/`
+2. Implement the plugin interface defined by the host
+3. Your module communicates with your project's backend via REST/gRPC as usual
+4. Document module-specific standards in the module's `docs/APP_STANDARDS.md`
+
+### What NOT to Build in Your Project
+
+- Standalone desktop applications (Electron, Tauri, etc.)
+- Endpoint agents or CLI daemons for end-users
+- System tray applications
+- Native installers for desktop functionality
+
+All of these belong as modules in the Penguin desktop app.
 
 ---
 
