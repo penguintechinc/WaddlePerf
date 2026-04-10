@@ -57,7 +57,7 @@ jobs:
         run: echo "tag=beta-$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Build and Push testserver
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./testServer
           file: ./testServer/Dockerfile
@@ -68,7 +68,7 @@ jobs:
             ghcr.io/${{ github.repository }}/testserver:beta
 
       - name: Build and Push unified-api
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./services/unified-api
           file: ./services/unified-api/Dockerfile
@@ -79,7 +79,7 @@ jobs:
             ghcr.io/${{ github.repository }}/unified-api:beta
 
       - name: Build and Push webui
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./webClient
           file: ./webClient/Dockerfile
