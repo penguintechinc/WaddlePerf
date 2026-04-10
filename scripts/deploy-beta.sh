@@ -9,11 +9,11 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Configuration
 KUBE_CONTEXT="${KUBE_CONTEXT:-dal2-beta}"
-NAMESPACE="${NAMESPACE:-waddleperf-beta}"
+NAMESPACE="${NAMESPACE:-waddleperf}"
 RELEASE_NAME="waddleperf"
 CHART_PATH="$PROJECT_ROOT/k8s/helm/waddleperf"
 VALUES_FILE="$CHART_PATH/values-beta.yaml"
-IMAGE_REGISTRY="registry-dal2.penguintech.io"
+IMAGE_REGISTRY="ghcr.io/penguintechinc/waddleperf"
 APP_HOST="waddleperf.penguintech.cloud"
 
 # Default flags
@@ -79,10 +79,10 @@ build_and_push_images() {
             continue
         fi
         log_info "Building $svc..."
-        docker build -t "$IMAGE_REGISTRY/waddleperf-$svc:$IMAGE_TAG" -t "$IMAGE_REGISTRY/waddleperf-$svc:beta" -f "$dockerfile" "$PROJECT_ROOT"
+        docker build -t "$IMAGE_REGISTRY/$svc:$IMAGE_TAG" -t "$IMAGE_REGISTRY/$svc:beta" -f "$dockerfile" "$PROJECT_ROOT"
         log_info "Pushing $svc with tag $IMAGE_TAG..."
-        docker push "$IMAGE_REGISTRY/waddleperf-$svc:$IMAGE_TAG"
-        docker push "$IMAGE_REGISTRY/waddleperf-$svc:beta"
+        docker push "$IMAGE_REGISTRY/$svc:$IMAGE_TAG"
+        docker push "$IMAGE_REGISTRY/$svc:beta"
         log_info "✓ $svc pushed successfully"
     done
 }
@@ -122,10 +122,12 @@ while [[ $# -gt 0 ]]; do
         --tag) IMAGE_TAG="$2"; shift 2;;
         --service=*) SERVICE="${1#*=}"; shift;;
         --service) SERVICE="$2"; shift 2;;
+        --ci-tag=*) IMAGE_TAG="${1#*=}"; BUILD_IMAGES=0; shift;;
+        --ci-tag) IMAGE_TAG="$2"; BUILD_IMAGES=0; shift 2;;
         --skip-build) BUILD_IMAGES=0; shift;;
         --dry-run) DRY_RUN=1; shift;;
         --rollback) ROLLBACK=1; shift;;
-        -h|--help) echo "Usage: $0 [--tag=TAG] [--service=SVC] [--skip-build] [--dry-run] [--rollback]"; exit 0;;
+        -h|--help) echo "Usage: $0 [--tag=TAG] [--ci-tag=TAG] [--service=SVC] [--skip-build] [--dry-run] [--rollback]"; exit 0;;
         *) log_error "Unknown: $1"; exit 1;;
     esac
 done

@@ -12,11 +12,9 @@ jobs:
       version: ${{ steps.vars.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-      - name: Set versioning variables
-        id: vars
+      - id: vars
         run: |
-          VERSION=$(cat .version | cut -d'.' -f1-3 | tr -d '[:space:]' || echo "0.0.0")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$(cat .version | cut -d. -f1-3)" >> $GITHUB_OUTPUT
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "postfix=-gamma" >> $GITHUB_OUTPUT
             echo "tag=gamma" >> $GITHUB_OUTPUT
@@ -34,9 +32,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: testServer/go.sum
-      - name: Run Go Tests
+        with: { go-version: '1.25', cache-dependency-path: testServer/go.sum }
+      - run: go test -v ./...
         working-directory: ./testServer
-        run: go test -v ./...
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [metadata, test]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set image tag
+        id: tag
+        run: echo "tag=beta-$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Build and Push testserver
+        uses: docker/build-push-action@v6
+        with:
+          context: ./testServer
+          file: ./testServer/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/testserver:${{ steps.tag.outputs.tag }}
+            ghcr.io/${{ github.repository }}/testserver:beta
+
+      - name: Build and Push unified-api
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/unified-api
+          file: ./services/unified-api/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/unified-api:${{ steps.tag.outputs.tag }}
+            ghcr.io/${{ github.repository }}/unified-api:beta
+
+      - name: Build and Push webui
+        uses: docker/build-push-action@v6
+        with:
+          context: ./webClient
+          file: ./webClient/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/webui:${{ steps.tag.outputs.tag }}
+            ghcr.io/${{ github.repository }}/webui:beta
+
+      - name: Output image tags
+        run: echo "Built and pushed images with tag ${{ steps.tag.outputs.tag }}"
