@@ -47,50 +47,41 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set image tag
         id: tag
         run: echo "tag=beta-$(date +%s)" >> $GITHUB_OUTPUT
-
+      - name: Set up QEMU
+        run: docker run --privileged --rm tonistiigi/binfmt --install all
+      - name: Set up buildx
+        run: docker buildx create --use --name builder
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build and Push testserver
-        uses: docker/build-push-action@v7
-        with:
-          context: ./testServer
-          file: ./testServer/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/testserver:${{ steps.tag.outputs.tag }}
-            ghcr.io/${{ github.repository }}/testserver:beta
-
+        run: |
+          docker buildx build \
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            --tag ghcr.io/${{ github.repository }}/testserver:${{ steps.tag.outputs.tag }} \
+            --tag ghcr.io/${{ github.repository }}/testserver:beta \
+            --file ./testServer/Dockerfile \
+            ./testServer
       - name: Build and Push unified-api
-        uses: docker/build-push-action@v7
-        with:
-          context: ./services/unified-api
-          file: ./services/unified-api/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/unified-api:${{ steps.tag.outputs.tag }}
-            ghcr.io/${{ github.repository }}/unified-api:beta
-
+        run: |
+          docker buildx build \
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            --tag ghcr.io/${{ github.repository }}/unified-api:${{ steps.tag.outputs.tag }} \
+            --tag ghcr.io/${{ github.repository }}/unified-api:beta \
+            --file ./services/unified-api/Dockerfile \
+            ./services/unified-api
       - name: Build and Push webui
-        uses: docker/build-push-action@v7
-        with:
-          context: ./webClient
-          file: ./webClient/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/webui:${{ steps.tag.outputs.tag }}
-            ghcr.io/${{ github.repository }}/webui:beta
-
+        run: |
+          docker buildx build \
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            --tag ghcr.io/${{ github.repository }}/webui:${{ steps.tag.outputs.tag }} \
+            --tag ghcr.io/${{ github.repository }}/webui:beta \
+            --file ./webClient/Dockerfile \
+            ./webClient
       - name: Output image tags
         run: echo "Built and pushed images with tag ${{ steps.tag.outputs.tag }}"
