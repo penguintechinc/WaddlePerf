@@ -17,4 +17,4 @@ werkzeug==3.1.8
 # PenguinTech shared libraries
 penguin-libs[flask,grpc,http]>=0.1.0
 penguin-licensing>=0.1.0
-penguintechinc-utils>=0.1.0
+penguin-utils>=0.1.0

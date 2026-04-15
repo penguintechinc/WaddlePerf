@@ -27,7 +27,7 @@ certifi>=2024.8.30
 
 # PenguinTech shared libraries
 penguin-libs[http]>=0.1.0
-penguintechinc-utils>=0.1.0
+penguin-utils>=0.1.0
 
 # Testing
 pytest>=8.0
