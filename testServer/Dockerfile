@@ -23,6 +23,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
 FROM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a
 
 # Install runtime dependencies (for ping, traceroute, etc.)
+# NET_RAW capability granted at runtime via K8s securityContext.capabilities.add, not setcap
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     tzdata \
@@ -31,13 +32,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dnsutils \
     traceroute \
     tcptraceroute \
-    libcap2 \
-    libcap2-bin \
     openssh-client && \
     groupadd -g 1000 waddleperf && \
     useradd -m -u 1000 -g waddleperf waddleperf && \
-    setcap cap_net_raw+ep /usr/bin/traceroute && \
-    setcap cap_net_raw+ep /usr/bin/tcptraceroute && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
