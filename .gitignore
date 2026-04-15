@@ -64,8 +64,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-package-lock.json
-!website/package-lock.json
+!package-lock.json
 yarn.lock
 .pnpm-debug.log
 .env
