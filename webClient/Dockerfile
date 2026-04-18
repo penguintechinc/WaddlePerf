@@ -5,12 +5,15 @@ FROM node:20-bookworm-slim@sha256:1e85773c98c31d4fe5b545e4cb17379e617b348832fb37
 
 WORKDIR /app/frontend
 
+# Copy shared react-libs
+COPY shared/react_libs /app/shared/react_libs
+
 # Copy frontend package files
-COPY frontend/package*.json ./
+COPY webClient/frontend/package*.json ./
 RUN npm ci
 
 # Copy frontend source and build
-COPY frontend/ ./
+COPY webClient/frontend/ ./
 RUN npm run build
 
 # Stage 2: Build Python API with embedded frontend
@@ -29,11 +32,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy API requirements and install
-COPY api/requirements.txt ./
+COPY webClient/api/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy API application
-COPY api/ ./
+COPY webClient/api/ ./
 
 # Copy built frontend files to static directory
 COPY --from=frontend-builder /app/frontend/dist ./static/

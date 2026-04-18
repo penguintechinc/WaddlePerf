@@ -82,6 +82,6 @@ jobs:
             --tag ghcr.io/${{ github.repository }}/webui:${{ steps.tag.outputs.tag }} \
             --tag ghcr.io/${{ github.repository }}/webui:beta \
             --file ./webClient/Dockerfile \
-            ./webClient
+            .
       - name: Output image tags
         run: echo "Built and pushed images with tag ${{ steps.tag.outputs.tag }}"
