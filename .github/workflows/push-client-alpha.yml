@@ -8,19 +8,29 @@
 name: Publish Alpha Docker image
 on:
   push:
-    branches:  ['!main']
+    branches-ignore: [main]
 env:
   REPO: waddleperf
 jobs:
-  push_to_registries:
-    name: Push Docker image to multiple registries
+  build:
+    name: Build (${{ matrix.platform }})
     runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
@@ -30,14 +40,14 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-    
+
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-    
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
@@ -45,13 +55,57 @@ jobs:
           images: |
             penguincloud/${{ env.REPO }}-client:alpha
             ghcr.io/${{ github.repository }}-client:alpha
-    
-      - name: Build and push Docker images
+
+      - name: Set platform slug
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: echo "PLATFORM_SLUG=$(echo "$PLATFORM" | tr '/' '-')" >> $GITHUB_ENV
+
+      - name: Build and push
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: ./client
           push: true
-          tags: alpha
+          platforms: ${{ matrix.platform }}
+          tags: |
+            ghcr.io/${{ github.repository }}-client:alpha-${{ env.PLATFORM_SLUG }}
+            penguincloud/${{ env.REPO }}-client:alpha-${{ env.PLATFORM_SLUG }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  merge:
+    name: Merge multi-arch manifest
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifests
+        run: |
+          docker buildx imagetools create \
+            -t ghcr.io/${{ github.repository }}-client:alpha \
+            ghcr.io/${{ github.repository }}-client:alpha-linux-amd64 \
+            ghcr.io/${{ github.repository }}-client:alpha-linux-arm64
+          docker buildx imagetools create \
+            -t penguincloud/${{ env.REPO }}-client:alpha \
+            penguincloud/${{ env.REPO }}-client:alpha-linux-amd64 \
+            penguincloud/${{ env.REPO }}-client:alpha-linux-arm64
+
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
