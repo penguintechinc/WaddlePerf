@@ -27,37 +27,29 @@ jobs:
           - linux/arm64
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9b11de45568b7b44d28e85c0b8e7  # v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@b5ca514318bd6ebba01cdb9b2d9a7ac3b0c11b09  # v3
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf5ca  # v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Log in to the Container registry
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf5ca  # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
-        with:
-          images: |
-            penguincloud/${{ env.REPO }}-server
-            ghcr.io/${{ github.repository }}-server
 
       - name: Set platform slug
         env:
@@ -67,28 +59,26 @@ jobs:
       - name: Prepare platform-specific tags
         id: platform-tags
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          PLATFORM_SLUG: ${{ env.PLATFORM_SLUG }}
           REPO: ${{ env.REPO }}
         run: |
           {
             echo 'tags<<EOF'
-            while IFS= read -r tag; do
-              echo "${tag}-${PLATFORM_SLUG}"
-            done <<< "$TAGS"
             echo "ghcr.io/penguincloud/${REPO}-server:latest-${PLATFORM_SLUG}"
             echo "penguincloud/${REPO}-server:latest-${PLATFORM_SLUG}"
+            echo "ghcr.io/${{ github.repository }}-server:${{ github.event.release.tag_name }}-${PLATFORM_SLUG}"
+            echo "penguincloud/${REPO}-server:${{ github.event.release.tag_name }}-${PLATFORM_SLUG}"
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
       - name: Build and push
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6
         with:
           context: ./server
           push: true
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.platform-tags.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ github.workflow }}-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ github.workflow }}-${{ matrix.platform }}
 
   merge:
     name: Merge multi-arch manifests
@@ -99,40 +89,25 @@ jobs:
       contents: read
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@b5ca514318bd6ebba01cdb9b2d9a7ac3b0c11b09  # v3
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf5ca  # v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Log in to the Container registry
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf5ca  # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
-        with:
-          images: |
-            penguincloud/${{ env.REPO }}-server
-            ghcr.io/${{ github.repository }}-server
-
       - name: Create multi-arch manifests
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}
           REPO: ${{ env.REPO }}
         run: |
-          while IFS= read -r tag; do
-            docker buildx imagetools create \
-              -t "$tag" \
-              "${tag}-linux-amd64" \
-              "${tag}-linux-arm64"
-          done <<< "$TAGS"
           docker buildx imagetools create \
             -t "ghcr.io/penguincloud/${REPO}-server:latest" \
             "ghcr.io/penguincloud/${REPO}-server:latest-linux-amd64" \
@@ -141,6 +116,14 @@ jobs:
             -t "penguincloud/${REPO}-server:latest" \
             "penguincloud/${REPO}-server:latest-linux-amd64" \
             "penguincloud/${REPO}-server:latest-linux-arm64"
+          docker buildx imagetools create \
+            -t "ghcr.io/${{ github.repository }}-server:${{ github.event.release.tag_name }}" \
+            "ghcr.io/${{ github.repository }}-server:${{ github.event.release.tag_name }}-linux-amd64" \
+            "ghcr.io/${{ github.repository }}-server:${{ github.event.release.tag_name }}-linux-arm64"
+          docker buildx imagetools create \
+            -t "penguincloud/${REPO}-server:${{ github.event.release.tag_name }}" \
+            "penguincloud/${REPO}-server:${{ github.event.release.tag_name }}-linux-amd64" \
+            "penguincloud/${REPO}-server:${{ github.event.release.tag_name }}-linux-arm64"
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
