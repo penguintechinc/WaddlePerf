@@ -3,9 +3,9 @@
 # Stage 1: Build React frontend
 FROM node:20-bookworm-slim@sha256:1e85773c98c31d4fe5b545e4cb17379e617b348832fb3738b22a08f68dec30f3 AS frontend-builder
 
-WORKDIR /app/frontend
+WORKDIR /app/webClient/frontend
 
-# Copy shared react-libs
+# Copy shared react-libs — must mirror repo layout so file:../../shared/react_libs resolves correctly
 COPY shared/react_libs /app/shared/react_libs
 
 # Copy frontend package files
@@ -26,7 +26,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
-    wget \
     && groupadd -g 1000 waddleperf \
     && useradd -m -u 1000 -g waddleperf waddleperf \
     && rm -rf /var/lib/apt/lists/*
@@ -39,7 +38,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY webClient/api/ ./
 
 # Copy built frontend files to static directory
-COPY --from=frontend-builder /app/frontend/dist ./static/
+COPY --from=frontend-builder /app/webClient/frontend/dist ./static/
 
 # Set ownership
 RUN chown -R waddleperf:waddleperf /app
@@ -52,7 +51,7 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')" || exit 1
 
 # Environment defaults
 ENV PORT=5000 \
