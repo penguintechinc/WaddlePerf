@@ -2,14 +2,19 @@ name: Build Unified API
 
 on:
   push:
-    branches: [main, 4.x]
-    tags: ['v*']
+    branches:
+      - main
+      - 4.x
+    tags:
+      - 'v*'
     paths:
       - 'services/unified-api/**'
       - 'services/unified-api/Dockerfile'
       - '.github/workflows/unified-api.yml'
   pull_request:
-    branches: [main, 4.x]
+    branches:
+      - main
+      - 4.x
     paths:
       - 'services/unified-api/**'
       - 'services/unified-api/Dockerfile'

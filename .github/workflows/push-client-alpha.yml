@@ -8,7 +8,8 @@
 name: Publish Alpha Docker image
 on:
   push:
-    branches-ignore: [main]
+    branches-ignore:
+      - main
 env:
   REPO: waddleperf
 jobs:
@@ -21,7 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [linux/amd64, linux/arm64]
+        platform:
+          - linux/amd64
+          - linux/arm64
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3

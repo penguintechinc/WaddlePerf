@@ -2,14 +2,19 @@ name: Build webClient Frontend
 
 on:
   push:
-    branches: [main, 4.x]
-    tags: ['v*']
+    branches:
+      - main
+      - 4.x
+    tags:
+      - 'v*'
     paths:
       - 'webClient/frontend/**'
       - 'webClient/Dockerfile.frontend'
       - '.github/workflows/webclient-frontend.yml'
   pull_request:
-    branches: [main, 4.x]
+    branches:
+      - main
+      - 4.x
     paths:
       - 'webClient/frontend/**'
       - 'webClient/Dockerfile.frontend'
@@ -64,7 +69,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [linux/amd64, linux/arm64]
+        platform:
+          - linux/amd64
+          - linux/arm64
 
     steps:
       - name: Checkout code

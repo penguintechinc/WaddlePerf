@@ -2,14 +2,19 @@ name: Build managerServer API
 
 on:
   push:
-    branches: [main, 4.x]
-    tags: ['v*']
+    branches:
+      - main
+      - 4.x
+    tags:
+      - 'v*'
     paths:
       - 'managerServer/api/**'
       - 'managerServer/Dockerfile.api'
       - '.github/workflows/managerserver-api.yml'
   pull_request:
-    branches: [main, 4.x]
+    branches:
+      - main
+      - 4.x
     paths:
       - 'managerServer/api/**'
       - 'managerServer/Dockerfile.api'
