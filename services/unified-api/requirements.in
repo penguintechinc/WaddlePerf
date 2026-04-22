@@ -10,7 +10,7 @@ pyotp==2.9.0
 aiohttp==3.9.1
 gunicorn==21.2.0
 hypercorn==0.16.0
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 qrcode==8.0
 werkzeug==3.0.1
 
