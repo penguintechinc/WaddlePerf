@@ -7,9 +7,11 @@ WORKDIR /app/webClient/frontend
 
 COPY webClient/frontend/package*.json webClient/frontend/.npmrc ./
 
-# npm_token secret used for GitHub Packages auth (@penguintechinc scope)
+# Write GitHub Packages auth to user npmrc for install, then remove it
 RUN --mount=type=secret,id=npm_token \
-    NPM_TOKEN=$(cat /run/secrets/npm_token) npm ci
+    echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/npm_token | tr -d '[:space:]')" > /root/.npmrc && \
+    npm ci && \
+    rm /root/.npmrc
 
 COPY webClient/frontend/ ./
 RUN npm run build
