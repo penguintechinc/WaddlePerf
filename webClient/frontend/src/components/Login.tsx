@@ -16,7 +16,7 @@ function Login({ onLogin }: LoginProps) {
       }}
       showForgotPassword={false}
       showSignUp={false}
-      onSuccess={(response) => {
+      onSuccess={(response: Record<string, unknown>) => {
         if (response.user) {
           onLogin(response.user as { id: number; username: string; email: string; role: string });
         }
@@ -25,7 +25,7 @@ function Login({ onLogin }: LoginProps) {
           sessionStorage.setItem('session_id', (response as Record<string, unknown>).session_id as string);
         }
       }}
-      onError={(error) => console.error('Login failed:', error)}
+      onError={(error: unknown) => console.error('Login failed:', error)}
     />
   );
 }

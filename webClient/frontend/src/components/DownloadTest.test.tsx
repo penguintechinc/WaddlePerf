@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 import DownloadTest from './DownloadTest'
 
 // Helper to create a ReadableStream that yields one chunk then closes
@@ -113,7 +113,7 @@ describe('DownloadTest component', () => {
 
   it('can cancel a running download test', async () => {
     // Mock fetch that respects the AbortSignal
-    mockFetch.mockImplementation((url: string, options: RequestInit) => {
+    mockFetch.mockImplementation((_url: string, options: RequestInit) => {
       return new Promise((_resolve, reject) => {
         // If signal is already aborted, reject immediately
         if (options?.signal?.aborted) {

@@ -229,12 +229,8 @@ describe('TestRunner component', () => {
     fireEvent.click(screen.getByText('Network Tests'))
 
     // Start test first
-    let startedCallback: ((data: any) => void) | null = null
-    mocks.websocketService.onTestStarted.mockImplementation((cb: (data: any) => void) => {
-      startedCallback = cb
-    })
+    mocks.websocketService.onTestStarted.mockImplementation(() => {})
 
-    // Re-render to capture startedCallback (connect is called in useEffect)
     // Simulate progress directly
     act(() => {
       if (progressCallback) {

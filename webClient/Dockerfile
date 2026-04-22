@@ -1,12 +1,22 @@
 # Multi-stage build for webClient (unified API + Frontend)
 
+# Stage 0: Build shared react-libs so dist/ is available to frontend
+FROM node:20-bookworm-slim@sha256:1e85773c98c31d4fe5b545e4cb17379e617b348832fb3738b22a08f68dec30f3 AS react-libs-builder
+
+WORKDIR /app/shared/react_libs
+COPY shared/react_libs/package*.json ./
+RUN npm ci
+COPY shared/react_libs/ ./
+RUN npm run build
+
 # Stage 1: Build React frontend
 FROM node:20-bookworm-slim@sha256:1e85773c98c31d4fe5b545e4cb17379e617b348832fb3738b22a08f68dec30f3 AS frontend-builder
 
 WORKDIR /app/webClient/frontend
 
-# Copy shared react-libs — must mirror repo layout so file:../../shared/react_libs resolves correctly
+# Copy shared react-libs with built dist/ so file:../../shared/react_libs resolves correctly
 COPY shared/react_libs /app/shared/react_libs
+COPY --from=react-libs-builder /app/shared/react_libs/dist /app/shared/react_libs/dist
 
 # Copy frontend package files
 COPY webClient/frontend/package*.json ./
