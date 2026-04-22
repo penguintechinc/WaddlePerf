@@ -1,28 +1,16 @@
 # Multi-stage build for webClient (unified API + Frontend)
 
-# Stage 0: Build shared react-libs so dist/ is available to frontend
-FROM node:20-bookworm-slim@sha256:1e85773c98c31d4fe5b545e4cb17379e617b348832fb3738b22a08f68dec30f3 AS react-libs-builder
-
-WORKDIR /app/shared/react_libs
-COPY shared/react_libs/package*.json ./
-RUN npm ci
-COPY shared/react_libs/ ./
-RUN npm run build
-
 # Stage 1: Build React frontend
 FROM node:20-bookworm-slim@sha256:1e85773c98c31d4fe5b545e4cb17379e617b348832fb3738b22a08f68dec30f3 AS frontend-builder
 
 WORKDIR /app/webClient/frontend
 
-# Copy shared react-libs with built dist/ so file:../../shared/react_libs resolves correctly
-COPY shared/react_libs /app/shared/react_libs
-COPY --from=react-libs-builder /app/shared/react_libs/dist /app/shared/react_libs/dist
+COPY webClient/frontend/package*.json webClient/frontend/.npmrc ./
 
-# Copy frontend package files
-COPY webClient/frontend/package*.json ./
-RUN npm ci
+# npm_token secret used for GitHub Packages auth (@penguintechinc scope)
+RUN --mount=type=secret,id=npm_token \
+    NPM_TOKEN=$(cat /run/secrets/npm_token) npm ci
 
-# Copy frontend source and build
 COPY webClient/frontend/ ./
 RUN npm run build
 
@@ -31,7 +19,6 @@ FROM python:3.13-slim-bookworm@sha256:01f42367a0a94ad4bc17111776fd66e3500c1d87c1
 
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     default-libmysqlclient-dev \
@@ -40,35 +27,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd -m -u 1000 -g waddleperf waddleperf \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy API requirements and install
 COPY webClient/api/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy API application
 COPY webClient/api/ ./
-
-# Copy built frontend files to static directory
 COPY --from=frontend-builder /app/webClient/frontend/dist ./static/
 
-# Set ownership
 RUN chown -R waddleperf:waddleperf /app
-
-# Switch to non-root user
 USER waddleperf
 
-# Expose port
 EXPOSE 5000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')" || exit 1
 
-# Environment defaults
 ENV PORT=5000 \
     WORKERS=4 \
     WORKER_CLASS=eventlet \
     TIMEOUT=120 \
     LOG_LEVEL=info
 
-# Run with gunicorn and SocketIO support
 CMD gunicorn --bind 0.0.0.0:${PORT} --workers ${WORKERS} --worker-class ${WORKER_CLASS} --timeout ${TIMEOUT} --log-level ${LOG_LEVEL} "app:app"
