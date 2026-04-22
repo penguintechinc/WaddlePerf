@@ -7,9 +7,9 @@ flask-cors==5.0.0
 flask-socketio==5.4.1
 
 # WebSocket support
-python-socketio==5.11.4
-python-engineio==4.10.1
-eventlet==0.37.0
+python-socketio==5.14.0
+python-engineio==4.13.1
+eventlet==0.40.3
 
 # Database
 PyMySQL==1.1.1
