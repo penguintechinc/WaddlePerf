@@ -67,7 +67,7 @@ function App() {
 
   return (
     <Router>
-      <AppConsoleVersion webuiVersion="1.0.0" apiStatusUrl="/health" />
+      <AppConsoleVersion appName="WaddlePerf" webuiVersion="1.0.0" apiStatusUrl="/health" />
       <div className="app">
         <Routes>
           <Route

@@ -219,8 +219,6 @@ describe('API service', () => {
     // Mock the retry call on the internal api instance
     interceptors.mockApiInstance.post.mockResolvedValue({ data: 'retried-response' })
     // Also mock the api instance as a function (axios instance is callable)
-    const mockRetry = vi.fn().mockResolvedValue({ data: 'retried-response' })
-
     const error = {
       response: { status: 401 },
       config: { headers: {}, url: '/some-endpoint', method: 'post' },

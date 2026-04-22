@@ -11,7 +11,6 @@ import {
   validateICMPProtocol,
   sanitizeString,
   MAX_TARGET_LENGTH,
-  MAX_QUERY_LENGTH,
   MAX_TIMEOUT_SECONDS,
   MAX_COUNT,
   MIN_PORT,
