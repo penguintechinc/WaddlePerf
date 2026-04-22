@@ -25,15 +25,15 @@ jobs:
           - darwin/arm64
           - windows/amd64
           - windows/arm64
-    
+
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       with:
         fetch-depth: 0  # Fetch full history for version tags
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd  # v4
       with:
         platforms: linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64
 
@@ -46,21 +46,21 @@ jobs:
         elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
           VERSION="pr-${{ github.event.number }}"
         fi
-        
+
         BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         GIT_COMMIT="${GITHUB_SHA::8}"
         PLATFORM="${{ matrix.platform }}"
         OS="${PLATFORM%/*}"
         ARCH="${PLATFORM#*/}"
-        
+
         # Windows binaries need .exe extension
         EXT=""
         if [[ "$OS" == "windows" ]]; then
           EXT=".exe"
         fi
-        
+
         OUTPUT_NAME="waddleperf-${OS}-${ARCH}${EXT}"
-        
+
         echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
         echo "BUILD_TIME=${BUILD_TIME}" >> $GITHUB_OUTPUT
         echo "GIT_COMMIT=${GIT_COMMIT}" >> $GITHUB_OUTPUT
@@ -68,7 +68,7 @@ jobs:
         echo "OS=${OS}" >> $GITHUB_OUTPUT
         echo "ARCH=${ARCH}" >> $GITHUB_OUTPUT
         echo "OUTPUT_NAME=${OUTPUT_NAME}" >> $GITHUB_OUTPUT
-        
+
         echo "Building: ${OUTPUT_NAME} for ${PLATFORM}"
 
     - name: Run tests (Linux AMD64 only)
@@ -102,25 +102,25 @@ jobs:
           --build-arg "GIT_COMMIT=${{ steps.meta.outputs.GIT_COMMIT }}" \
           --output type=local,dest=./dist \
           .
-        
+
         # List what was built
         echo "Build output:"
         ls -la ./dist/
-        
+
         # Verify the binary exists
         if [[ -f "./dist/${{ steps.meta.outputs.OUTPUT_NAME }}" ]]; then
-          echo "✅ Successfully built ${{ steps.meta.outputs.OUTPUT_NAME }}"
+          echo "Successfully built ${{ steps.meta.outputs.OUTPUT_NAME }}"
           file "./dist/${{ steps.meta.outputs.OUTPUT_NAME }}" || true
           ls -lh "./dist/${{ steps.meta.outputs.OUTPUT_NAME }}"
         else
-          echo "❌ Binary not found: ${{ steps.meta.outputs.OUTPUT_NAME }}"
+          echo "Binary not found: ${{ steps.meta.outputs.OUTPUT_NAME }}"
           echo "Available files:"
           ls -la ./dist/ || echo "No dist directory"
           exit 1
         fi
 
     - name: Upload binary artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
       with:
         name: ${{ steps.meta.outputs.OUTPUT_NAME }}
         path: go-client/dist/${{ steps.meta.outputs.OUTPUT_NAME }}
@@ -131,16 +131,16 @@ jobs:
     runs-on: macos-latest
     needs: build-binaries
     if: always() && (needs.build-binaries.result == 'success')
-    
+
     steps:
     - name: Download macOS AMD64 binary
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
       with:
         name: waddleperf-darwin-amd64
         path: ./binaries
 
     - name: Download macOS ARM64 binary
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
       with:
         name: waddleperf-darwin-arm64
         path: ./binaries
@@ -149,11 +149,11 @@ jobs:
       run: |
         echo "Creating macOS universal binary..."
         chmod +x binaries/waddleperf-darwin-*
-        
+
         lipo -create -output waddleperf-darwin-universal \
           binaries/waddleperf-darwin-amd64 \
           binaries/waddleperf-darwin-arm64
-        
+
         # Verify universal binary
         echo "Universal binary info:"
         lipo -info waddleperf-darwin-universal
@@ -161,156 +161,157 @@ jobs:
         ls -lh waddleperf-darwin-universal
 
     - name: Upload universal binary
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
       with:
         name: waddleperf-darwin-universal
         path: waddleperf-darwin-universal
         retention-days: 7
 
-  build-docker-images:
-    name: Build Multi-Platform Docker Images
+  build-platform-docker-images:
+    name: Build Docker Image - ${{ matrix.platform }}
     runs-on: ubuntu-latest
     needs: build-binaries
     if: always() && (needs.build-binaries.result == 'success')
-    
+
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       with:
         fetch-depth: 0
 
-    - name: Download Linux AMD64 binary
-      uses: actions/download-artifact@v4
-      with:
-        name: waddleperf-linux-amd64
-        path: ./binaries/amd64
+    - name: Extract platform tuple
+      id: platform
+      run: |
+        PLATFORM="${{ matrix.platform }}"
+        OS="${PLATFORM%/*}"
+        ARCH="${PLATFORM#*/}"
+        echo "os=${OS}" >> $GITHUB_OUTPUT
+        echo "arch=${ARCH}" >> $GITHUB_OUTPUT
 
-    - name: Download Linux ARM64 binary
-      uses: actions/download-artifact@v4
+    - name: Download Linux binary for platform
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
       with:
-        name: waddleperf-linux-arm64
-        path: ./binaries/arm64
+        name: waddleperf-linux-${{ steps.platform.outputs.arch }}
+        path: ./binaries/${{ steps.platform.outputs.arch }}
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        platforms: linux/amd64,linux/arm64
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd  # v4
 
     - name: Login to GitHub Container Registry
-      if: github.event_name != 'pull_request'
-      uses: docker/login-action@v3
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract Docker metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: |
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_GO }}
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LEGACY }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value={{branch}}-{{sha}}
-          type=schedule,pattern={{date 'YYYYMMDD'}}
-        labels: |
-          org.opencontainers.image.title=WaddlePerf Go Client
-          org.opencontainers.image.description=Network performance testing client built with Go
-          org.opencontainers.image.vendor=Penguin Technologies Inc.
-          org.opencontainers.image.licenses=MIT
-
     - name: Prepare Docker context
       working-directory: ./go-client
       run: |
         echo "Preparing Docker build context..."
-        
+
         # Create binaries directory structure
         mkdir -p binaries
-        
-        # Copy binaries to expected locations
-        cp ../binaries/amd64/waddleperf-linux-amd64 binaries/ 2>/dev/null || echo "AMD64 binary not found"
-        cp ../binaries/arm64/waddleperf-linux-arm64 binaries/ 2>/dev/null || echo "ARM64 binary not found"
-        
+
+        # Copy binary to expected location
+        cp ../binaries/${{ steps.platform.outputs.arch }}/waddleperf-linux-${{ steps.platform.outputs.arch }} binaries/ 2>/dev/null || echo "Binary not found"
+
         # Create runtime Dockerfile that uses pre-built binaries
-        cat > Dockerfile.runtime << 'EOF'
-        FROM alpine:3.19
+        cat > Dockerfile.runtime << 'DOCKERFILE'
+FROM debian:bookworm-slim@sha256:0c9555d556a13e6017a63f4604dfc483a0dd8a7c3c96e8eb1ac62cbfed0ea550
 
-        # Install runtime dependencies
-        RUN apk add --no-cache \
-            ca-certificates \
-            tzdata \
-            curl \
-            iputils-ping \
-            bind-tools \
-            net-tools \
-            iperf3 \
-            mtr && \
-            adduser -D -u 1000 waddleperf
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    iputils-ping \
+    dnsutils \
+    net-tools \
+    iperf3 \
+    mtr \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r waddleperf && useradd -r -g waddleperf waddleperf
 
-        # Copy pre-built binaries
-        COPY binaries/ /tmp/binaries/
+COPY binaries/ /tmp/binaries/
 
-        # Install correct binary based on target architecture
-        ARG TARGETARCH
-        RUN echo "Target architecture: ${TARGETARCH}" && \
-            BINARY_NAME="waddleperf-linux-${TARGETARCH}" && \
-            if [ -f "/tmp/binaries/${BINARY_NAME}" ]; then \
-              cp "/tmp/binaries/${BINARY_NAME}" /usr/local/bin/waddleperf && \
-              chmod +x /usr/local/bin/waddleperf; \
-            else \
-              echo "Binary ${BINARY_NAME} not found, available files:" && \
-              ls -la /tmp/binaries/ && \
-              exit 1; \
-            fi && \
-            rm -rf /tmp/binaries
+ARG TARGETARCH
+RUN echo "Target architecture: ${TARGETARCH}" && \
+    BINARY_NAME="waddleperf-linux-${TARGETARCH}" && \
+    if [ -f "/tmp/binaries/${BINARY_NAME}" ]; then \
+      cp "/tmp/binaries/${BINARY_NAME}" /usr/local/bin/waddleperf && \
+      chmod +x /usr/local/bin/waddleperf; \
+    else \
+      echo "Binary ${BINARY_NAME} not found"; \
+      exit 1; \
+    fi && \
+    rm -rf /tmp/binaries
 
-        # Set up user and working directory
-        USER waddleperf
-        WORKDIR /home/waddleperf
+USER waddleperf
+WORKDIR /home/waddleperf
 
-        # Health check
-        HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-          CMD waddleperf info || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD waddleperf info || exit 1
 
-        # Set entrypoint and default command
-        ENTRYPOINT ["/usr/local/bin/waddleperf"]
-        CMD ["--help"]
-        EOF
-        
+ENTRYPOINT ["/usr/local/bin/waddleperf"]
+CMD ["--help"]
+DOCKERFILE
+
         echo "Docker context prepared:"
         ls -la binaries/
         echo "Dockerfile.runtime created"
 
-    - name: Build and push Docker images
-      uses: docker/build-push-action@v5
+    - name: Build and push Docker image platform tag
+      uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7
       with:
         context: ./go-client
         file: ./go-client/Dockerfile.runtime
-        platforms: linux/amd64,linux/arm64
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        platforms: ${{ matrix.platform }}
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_GO }}:latest-${{ steps.platform.outputs.arch }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LEGACY }}:latest-${{ steps.platform.outputs.arch }}
+        cache-from: type=gha,scope=docker-${{ steps.platform.outputs.arch }}
+        cache-to: type=gha,scope=docker-${{ steps.platform.outputs.arch }},mode=max
+
+  merge-docker-manifests:
+    name: Merge Docker Manifests
+    runs-on: ubuntu-latest
+    needs: [build-platform-docker-images]
+    if: always() && (needs.build-platform-docker-images.result == 'success')
+
+    steps:
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create and push multi-arch manifest
+      run: |
+        echo "Creating multi-arch manifests..."
+
+        for image in "${{ env.IMAGE_NAME_GO }}" "${{ env.IMAGE_NAME_LEGACY }}"; do
+          docker buildx imagetools create -t "${{ env.REGISTRY }}/${image}:latest" \
+            "${{ env.REGISTRY }}/${image}:latest-amd64" \
+            "${{ env.REGISTRY }}/${image}:latest-arm64"
+          echo "Created manifest for ${image}:latest"
+        done
 
   create-release-packages:
     name: Create Release Packages
     runs-on: ubuntu-latest
     needs: [build-binaries, build-macos-universal]
     if: always() && (needs.build-binaries.result == 'success') && (github.event_name == 'release' || github.ref == 'refs/heads/main')
-    
+
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
     - name: Download all binary artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
       with:
         path: ./artifacts
 
@@ -318,64 +319,64 @@ jobs:
       run: |
         echo "Creating distribution packages..."
         mkdir -p packages
-        
+
         # List all downloaded artifacts
         echo "Available artifacts:"
         find ./artifacts -type f -name "waddleperf-*" | sort
-        
+
         # Create archives for each platform
         for artifact_dir in ./artifacts/waddleperf-*; do
           if [[ -d "$artifact_dir" ]]; then
             artifact_name=$(basename "$artifact_dir")
             echo "Processing $artifact_name..."
-            
+
             # Find the binary in the artifact directory
             binary_path=$(find "$artifact_dir" -name "waddleperf-*" -type f | head -1)
-            
+
             if [[ -n "$binary_path" && -f "$binary_path" ]]; then
               binary_name=$(basename "$binary_path")
               echo "Found binary: $binary_name"
-              
+
               # Copy binary to packages directory for archiving
               cp "$binary_path" "packages/"
-              
+
               # Create appropriate archive based on platform
               if [[ "$binary_name" == *windows* ]]; then
                 # Create zip for Windows
                 cd packages
                 zip "${binary_name%.exe}.zip" "$binary_name"
-                rm "$binary_name"  # Remove original binary after archiving
+                rm "$binary_name"
                 cd ..
-                echo "✅ Created ${binary_name%.exe}.zip"
+                echo "Created ${binary_name%.exe}.zip"
               else
                 # Create tar.gz for Unix-like systems
                 cd packages
                 tar czf "${binary_name}.tar.gz" "$binary_name"
-                rm "$binary_name"  # Remove original binary after archiving
+                rm "$binary_name"
                 cd ..
-                echo "✅ Created ${binary_name}.tar.gz"
+                echo "Created ${binary_name}.tar.gz"
               fi
             else
-              echo "⚠️  No binary found in $artifact_dir"
+              echo "No binary found in $artifact_dir"
             fi
           fi
         done
-        
+
         # Create checksums
         if [[ -n "$(ls -A packages/ 2>/dev/null)" ]]; then
           cd packages
           sha256sum * > SHA256SUMS.txt
-          echo "✅ Created SHA256SUMS.txt"
-          
-          echo "📦 Final packages:"
+          echo "Created SHA256SUMS.txt"
+
+          echo "Final packages:"
           ls -la
         else
-          echo "❌ No packages were created"
+          echo "No packages were created"
           exit 1
         fi
 
     - name: Upload distribution packages
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
       with:
         name: distribution-packages
         path: packages/
@@ -383,7 +384,7 @@ jobs:
 
     - name: Upload to GitHub Release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda  # v3
       with:
         files: |
           packages/*.tar.gz
@@ -396,22 +397,22 @@ jobs:
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build-binaries, build-macos-universal, build-docker-images, create-release-packages]
+    needs: [build-binaries, build-macos-universal, build-platform-docker-images, create-release-packages]
     if: always()
-    
+
     steps:
     - name: Build Summary
       run: |
         echo "## WaddlePerf Go Client Build Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
         echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
         echo "| Build Binaries | ${{ needs.build-binaries.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| macOS Universal | ${{ needs.build-macos-universal.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Docker Images | ${{ needs.build-docker-images.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Docker Images | ${{ needs.build-platform-docker-images.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Release Packages | ${{ needs.create-release-packages.result }} |" >> $GITHUB_STEP_SUMMARY
-        
+
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
         echo "**Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
