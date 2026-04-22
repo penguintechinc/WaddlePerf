@@ -75,6 +75,8 @@ jobs:
             --file ./services/unified-api/Dockerfile \
             ./services/unified-api
       - name: Build and Push webui
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           docker buildx build \
             --push \
