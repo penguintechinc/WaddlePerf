@@ -75,13 +75,10 @@ jobs:
             --file ./services/unified-api/Dockerfile \
             ./services/unified-api
       - name: Build and Push webui
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           docker buildx build \
             --push \
             --platform linux/amd64,linux/arm64 \
-            --secret id=npm_token,env=GITHUB_TOKEN \
             --tag ghcr.io/${{ github.repository }}/webui:${{ steps.tag.outputs.tag }} \
             --tag ghcr.io/${{ github.repository }}/webui:beta \
             --file ./webClient/Dockerfile \

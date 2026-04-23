@@ -1,4 +1,4 @@
-import { LoginPageBuilder } from '@penguintechinc/react-libs';
+import { LoginPageBuilder, LoginResponse } from '@penguintechinc/react-libs';
 import './Login.css'
 
 interface LoginProps {
@@ -16,16 +16,23 @@ function Login({ onLogin }: LoginProps) {
       }}
       showForgotPassword={false}
       showSignUp={false}
-      onSuccess={(response: Record<string, unknown>) => {
+      onSuccess={(response: LoginResponse) => {
         if (response.user) {
-          onLogin(response.user as { id: number; username: string; email: string; role: string });
+          onLogin({
+            id: parseInt(response.user.id, 10),
+            username: response.user.name ?? response.user.email,
+            email: response.user.email,
+            role: response.user.roles?.[0] ?? 'viewer',
+          });
         }
-        // Store session_id for WebSocket authentication
-        if ((response as Record<string, unknown>).session_id) {
-          sessionStorage.setItem('session_id', (response as Record<string, unknown>).session_id as string);
+        if (response.token) {
+          localStorage.setItem('access_token', response.token);
+        }
+        if (response.refreshToken) {
+          localStorage.setItem('refresh_token', response.refreshToken);
         }
       }}
-      onError={(error: unknown) => console.error('Login failed:', error)}
+      onError={(error: unknown) => console.error('[Login] failed:', error)}
     />
   );
 }

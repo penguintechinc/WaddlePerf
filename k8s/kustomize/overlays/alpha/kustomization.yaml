@@ -1,6 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: waddleperf-alpha
+namespace: waddleperf
 namePrefix: alpha-
 commonLabels:
   environment: alpha
@@ -14,12 +14,12 @@ replicas:
   - name: webui
     count: 1
 images:
-  - name: registry-dal2.penguintech.io/waddleperf/testserver
-    newTag: latest
-  - name: registry-dal2.penguintech.io/waddleperf/unified-api
-    newTag: latest
-  - name: registry-dal2.penguintech.io/waddleperf/webui
-    newTag: latest
+  - name: ghcr.io/penguintechinc/waddleperf/testserver
+    newTag: beta
+  - name: ghcr.io/penguintechinc/waddleperf/unified-api
+    newTag: beta
+  - name: ghcr.io/penguintechinc/waddleperf/webui
+    newTag: beta
 configMapGenerator:
   - name: waddleperf-config
     behavior: merge
