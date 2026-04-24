@@ -1,23 +1,30 @@
-"""Database models for managerServer"""
-from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
+"""Data record types for managerServer.
+
+These dataclasses provide type hints and helper methods.
+All database access is via penguin_dal (get_db()), not ORM classes.
+Table schemas are defined by Alembic migrations — penguin_dal reflects them at startup.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Optional
 import bcrypt
 import secrets
 
-db = SQLAlchemy()
 
-class OrganizationUnit(db.Model):
-    __tablename__ = 'organization_units'
+# ---------------------------------------------------------------------------
+# Dataclass records (type hints + to_dict helpers)
+# ---------------------------------------------------------------------------
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+@dataclass(slots=True)
+class OrganizationUnitRecord:
+    id: int
+    name: str
+    description: Optional[str]
+    created_at: Any
+    updated_at: Any
 
-    users = db.relationship('User', backref='organization', lazy='dynamic')
-
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'name': self.name,
@@ -26,40 +33,28 @@ class OrganizationUnit(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
-class User(db.Model):
-    __tablename__ = 'users'
 
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    api_key = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    role = db.Column(db.Enum('global_admin', 'global_reporter', 'ou_admin', 'ou_reporter', 'user'),
-                     nullable=False, default='user')
-    ou_id = db.Column(db.Integer, db.ForeignKey('organization_units.id'), nullable=True)
-    mfa_enabled = db.Column(db.Boolean, default=False)
-    mfa_secret = db.Column(db.String(32), nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def set_password(self, password: str):
-        """Hash and set password using bcrypt"""
-        salt = bcrypt.gensalt(rounds=12)
-        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+@dataclass(slots=True)
+class UserRecord:
+    id: int
+    username: str
+    email: str
+    password_hash: str
+    api_key: str
+    role: str
+    ou_id: Optional[int]
+    mfa_enabled: bool
+    mfa_secret: Optional[str]
+    is_active: bool
+    created_at: Any
+    updated_at: Any
 
     def check_password(self, password: str) -> bool:
-        """Verify password against hash"""
+        """Verify password against stored hash."""
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
 
-    @staticmethod
-    def generate_api_key() -> str:
-        """Generate a secure 64-character API key"""
-        return secrets.token_hex(32)
-
-    def to_dict(self, include_sensitive=False):
-        """Convert user to dictionary"""
-        data = {
+    def to_dict(self, include_sensitive: bool = False) -> dict:
+        data: dict = {
             'id': self.id,
             'username': self.username,
             'email': self.email,
@@ -75,44 +70,39 @@ class User(db.Model):
             data['mfa_secret'] = self.mfa_secret
         return data
 
-class Session(db.Model):
-    __tablename__ = 'sessions'
 
-    id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    data = db.Column(db.JSON)
-    expires_at = db.Column(db.DateTime, nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+@dataclass(slots=True)
+class SessionRecord:
+    id: int
+    session_id: str
+    user_id: int
+    data: Any
+    expires_at: Any
+    created_at: Any
 
-    user = db.relationship('User', backref='sessions')
 
-class JWTToken(db.Model):
-    __tablename__ = 'jwt_tokens'
+@dataclass(slots=True)
+class JWTTokenRecord:
+    id: int
+    user_id: int
+    token_hash: str
+    expires_at: Any
+    issued_at: Any
+    revoked: bool
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    token_hash = db.Column(db.String(64), nullable=False, index=True)
-    expires_at = db.Column(db.DateTime, nullable=False, index=True)
-    issued_at = db.Column(db.DateTime, default=datetime.utcnow)
-    revoked = db.Column(db.Boolean, default=False)
 
-    user = db.relationship('User', backref='jwt_tokens')
+@dataclass(slots=True)
+class SystemConfigRecord:
+    id: int
+    config_key: str
+    config_value: Optional[str]
+    config_type: str
+    description: Optional[str]
+    updated_by: Optional[int]
+    created_at: Any
+    updated_at: Any
 
-class SystemConfig(db.Model):
-    """System configuration table (FleetDM-style global settings)"""
-    __tablename__ = 'system_config'
-
-    id = db.Column(db.Integer, primary_key=True)
-    config_key = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    config_value = db.Column(db.Text)
-    config_type = db.Column(db.Enum('string', 'boolean', 'integer', 'json'), default='string', nullable=False)
-    description = db.Column(db.Text)
-    updated_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'config_key': self.config_key,
             'config_value': self.config_value,
@@ -121,27 +111,19 @@ class SystemConfig(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
-class OUEnrollmentSecret(db.Model):
-    """OU enrollment secrets (FleetDM-style team secrets)"""
-    __tablename__ = 'ou_enrollment_secrets'
 
-    id = db.Column(db.Integer, primary_key=True)
-    ou_id = db.Column(db.Integer, db.ForeignKey('organization_units.id'), nullable=False)
-    secret = db.Column(db.String(128), unique=True, nullable=False, index=True)
-    name = db.Column(db.String(255))
-    is_active = db.Column(db.Boolean, default=True, index=True)
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+@dataclass(slots=True)
+class OUEnrollmentSecretRecord:
+    id: int
+    ou_id: int
+    secret: str
+    name: Optional[str]
+    is_active: bool
+    created_by: Optional[int]
+    created_at: Any
 
-    organization = db.relationship('OrganizationUnit', backref='enrollment_secrets')
-
-    @staticmethod
-    def generate_secret() -> str:
-        """Generate a secure enrollment secret (similar to FleetDM)"""
-        return secrets.token_urlsafe(48)  # ~64 characters base64url encoded
-
-    def to_dict(self, include_secret=False):
-        data = {
+    def to_dict(self, include_secret: bool = False) -> dict:
+        data: dict = {
             'id': self.id,
             'ou_id': self.ou_id,
             'name': self.name,
@@ -152,28 +134,24 @@ class OUEnrollmentSecret(db.Model):
             data['secret'] = self.secret
         return data
 
-class DeviceEnrollment(db.Model):
-    """Device enrollments (FleetDM-style host tracking)"""
-    __tablename__ = 'device_enrollments'
 
-    id = db.Column(db.Integer, primary_key=True)
-    ou_id = db.Column(db.Integer, db.ForeignKey('organization_units.id'), nullable=False)
-    enrollment_secret_id = db.Column(db.Integer, db.ForeignKey('ou_enrollment_secrets.id'), nullable=False)
-    device_serial = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    device_hostname = db.Column(db.String(255), nullable=False)
-    device_os = db.Column(db.String(100), nullable=False)
-    device_os_version = db.Column(db.String(100), nullable=False)
-    client_type = db.Column(db.Enum('containerClient', 'goClient', 'webClient'), nullable=False)
-    client_version = db.Column(db.String(50))
-    enrolled_ip = db.Column(db.String(45), nullable=False)
-    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_seen = db.Column(db.DateTime)
-    is_active = db.Column(db.Boolean, default=True, index=True)
+@dataclass(slots=True)
+class DeviceEnrollmentRecord:
+    id: int
+    ou_id: int
+    enrollment_secret_id: int
+    device_serial: str
+    device_hostname: str
+    device_os: str
+    device_os_version: str
+    client_type: str
+    client_version: Optional[str]
+    enrolled_ip: str
+    enrolled_at: Any
+    last_seen: Any
+    is_active: bool
 
-    organization = db.relationship('OrganizationUnit', backref='devices')
-    enrollment_secret = db.relationship('OUEnrollmentSecret', backref='devices')
-
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'ou_id': self.ou_id,
@@ -189,20 +167,19 @@ class DeviceEnrollment(db.Model):
             'is_active': self.is_active,
         }
 
-class ClientConfig(db.Model):
-    """Client test configuration per OU"""
-    __tablename__ = 'client_configs'
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    ou_id = db.Column(db.Integer, db.ForeignKey('organization_units.id'), nullable=True)
-    config_name = db.Column(db.String(255), nullable=False)
-    config_data = db.Column(db.JSON, nullable=False)
-    is_default = db.Column(db.Boolean, default=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+@dataclass(slots=True)
+class ClientConfigRecord:
+    id: int
+    user_id: Optional[int]
+    ou_id: Optional[int]
+    config_name: str
+    config_data: Any
+    is_default: bool
+    created_at: Any
+    updated_at: Any
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -213,3 +190,140 @@ class ClientConfig(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+# ---------------------------------------------------------------------------
+# Utility functions (previously static methods on model classes)
+# ---------------------------------------------------------------------------
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+
+def generate_api_key() -> str:
+    """Generate a secure 64-character API key."""
+    return secrets.token_hex(32)
+
+
+def generate_enrollment_secret() -> str:
+    """Generate a secure enrollment secret (similar to FleetDM)."""
+    return secrets.token_urlsafe(48)
+
+
+# ---------------------------------------------------------------------------
+# Row → Record converters
+# ---------------------------------------------------------------------------
+
+def row_to_user(row: Any) -> UserRecord:
+    """Convert a penguin_dal Row to a UserRecord."""
+    return UserRecord(
+        id=row.id,
+        username=row.username,
+        email=row.email,
+        password_hash=row.password_hash,
+        api_key=row.api_key,
+        role=row.role,
+        ou_id=row.ou_id,
+        mfa_enabled=bool(row.mfa_enabled),
+        mfa_secret=row.mfa_secret,
+        is_active=bool(row.is_active),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def row_to_organization(row: Any) -> OrganizationUnitRecord:
+    """Convert a penguin_dal Row to an OrganizationUnitRecord."""
+    return OrganizationUnitRecord(
+        id=row.id,
+        name=row.name,
+        description=row.description,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def row_to_session(row: Any) -> SessionRecord:
+    """Convert a penguin_dal Row to a SessionRecord."""
+    return SessionRecord(
+        id=row.id,
+        session_id=row.session_id,
+        user_id=row.user_id,
+        data=row.data,
+        expires_at=row.expires_at,
+        created_at=row.created_at,
+    )
+
+
+def row_to_jwt_token(row: Any) -> JWTTokenRecord:
+    """Convert a penguin_dal Row to a JWTTokenRecord."""
+    return JWTTokenRecord(
+        id=row.id,
+        user_id=row.user_id,
+        token_hash=row.token_hash,
+        expires_at=row.expires_at,
+        issued_at=row.issued_at,
+        revoked=bool(row.revoked),
+    )
+
+
+def row_to_system_config(row: Any) -> SystemConfigRecord:
+    """Convert a penguin_dal Row to a SystemConfigRecord."""
+    return SystemConfigRecord(
+        id=row.id,
+        config_key=row.config_key,
+        config_value=row.config_value,
+        config_type=row.config_type,
+        description=row.description,
+        updated_by=row.updated_by,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def row_to_enrollment_secret(row: Any) -> OUEnrollmentSecretRecord:
+    """Convert a penguin_dal Row to an OUEnrollmentSecretRecord."""
+    return OUEnrollmentSecretRecord(
+        id=row.id,
+        ou_id=row.ou_id,
+        secret=row.secret,
+        name=row.name,
+        is_active=bool(row.is_active),
+        created_by=row.created_by,
+        created_at=row.created_at,
+    )
+
+
+def row_to_device_enrollment(row: Any) -> DeviceEnrollmentRecord:
+    """Convert a penguin_dal Row to a DeviceEnrollmentRecord."""
+    return DeviceEnrollmentRecord(
+        id=row.id,
+        ou_id=row.ou_id,
+        enrollment_secret_id=row.enrollment_secret_id,
+        device_serial=row.device_serial,
+        device_hostname=row.device_hostname,
+        device_os=row.device_os,
+        device_os_version=row.device_os_version,
+        client_type=row.client_type,
+        client_version=row.client_version,
+        enrolled_ip=row.enrolled_ip,
+        enrolled_at=row.enrolled_at,
+        last_seen=row.last_seen,
+        is_active=bool(row.is_active),
+    )
+
+
+def row_to_client_config(row: Any) -> ClientConfigRecord:
+    """Convert a penguin_dal Row to a ClientConfigRecord."""
+    return ClientConfigRecord(
+        id=row.id,
+        user_id=row.user_id,
+        ou_id=row.ou_id,
+        config_name=row.config_name,
+        config_data=row.config_data,
+        is_default=bool(row.is_default),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )

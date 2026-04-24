@@ -26,7 +26,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       with:
         fetch-depth: 0
 
@@ -67,7 +67,7 @@ jobs:
         echo "Container tags: ${CONTAINER_TAGS}"
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd  # v4
 
     - name: Build Docker builder image
       working-directory: ./goClient
@@ -123,27 +123,27 @@ jobs:
         # Windows - create zip
         if [[ -f "waddleperf-windows-amd64${SUFFIX}.exe" ]]; then
           zip "waddleperf-windows-amd64${SUFFIX}.zip" "waddleperf-windows-amd64${SUFFIX}.exe"
-          echo "✅ Created waddleperf-windows-amd64${SUFFIX}.zip"
+          echo "Created waddleperf-windows-amd64${SUFFIX}.zip"
         fi
 
         # Linux AMD64 - create tar.gz
         if [[ -f "waddleperf-linux-amd64${SUFFIX}" ]]; then
           tar czf "waddleperf-linux-amd64${SUFFIX}.tar.gz" "waddleperf-linux-amd64${SUFFIX}"
-          echo "✅ Created waddleperf-linux-amd64${SUFFIX}.tar.gz"
+          echo "Created waddleperf-linux-amd64${SUFFIX}.tar.gz"
         fi
 
         # Linux ARM64 - create tar.gz
         if [[ -f "waddleperf-linux-arm64${SUFFIX}" ]]; then
           tar czf "waddleperf-linux-arm64${SUFFIX}.tar.gz" "waddleperf-linux-arm64${SUFFIX}"
-          echo "✅ Created waddleperf-linux-arm64${SUFFIX}.tar.gz"
+          echo "Created waddleperf-linux-arm64${SUFFIX}.tar.gz"
         fi
 
         echo ""
-        echo "📦 Distribution packages:"
+        echo "Distribution packages:"
         ls -lh *.tar.gz *.zip SHA256SUMS 2>/dev/null || ls -lh
 
     - name: Upload binaries as artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
       with:
         name: goclient-binaries-${{ steps.version.outputs.VERSION }}
         path: |
@@ -152,7 +152,7 @@ jobs:
         retention-days: 90
 
     - name: Upload packages as artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
       with:
         name: goclient-packages-${{ steps.version.outputs.VERSION }}
         path: |
@@ -163,7 +163,7 @@ jobs:
 
     - name: Upload to GitHub Release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda  # v3
       with:
         files: |
           goClient/dist/*.tar.gz
@@ -207,29 +207,43 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-container:
-    name: Build and Push Container
+  build-platform-container:
+    name: Build Container - ${{ matrix.platform }}
     runs-on: ubuntu-latest
     needs: build-binaries
     if: always() && needs.build-binaries.result == 'success'
 
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
-    - name: Download Linux AMD64 binary artifact
-      uses: actions/download-artifact@v4
+    - name: Extract platform tuple
+      id: platform
+      run: |
+        PLATFORM="${{ matrix.platform }}"
+        OS="${PLATFORM%/*}"
+        ARCH="${PLATFORM#*/}"
+        echo "os=${OS}" >> $GITHUB_OUTPUT
+        echo "arch=${ARCH}" >> $GITHUB_OUTPUT
+
+    - name: Download Linux binaries artifact
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
       with:
         name: goclient-binaries-${{ needs.build-binaries.outputs.version }}
         path: ./goClient/dist
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a  # v4
+
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        platforms: linux/amd64,linux/arm64
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd  # v4
 
     - name: Login to GitHub Container Registry
-      uses: docker/login-action@v3
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
@@ -264,67 +278,43 @@ jobs:
     - name: Create runtime Dockerfile
       working-directory: ./goClient
       run: |
-        cat > Dockerfile.runtime << 'EOF'
-        FROM alpine:3.19
+        cat > Dockerfile.runtime << 'DOCKERFILE'
+FROM debian:bookworm-slim@sha256:0c9555d556a13e6017a63f4604dfc483a0dd8a7c3c96e8eb1ac62cbfed0ea550
 
-        # Install runtime dependencies
-        RUN apk add --no-cache \
-            ca-certificates \
-            tzdata \
-            curl \
-            iputils \
-            bind-tools \
-            traceroute \
-            tcptraceroute \
-            libcap \
-            && adduser -D -u 1000 waddleperf
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    tzdata \
+    curl \
+    iputils-ping \
+    dnsutils \
+    traceroute \
+    tcptraceroute \
+    libcap2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && adduser -D -u 1000 waddleperf
 
-        # Copy pre-built binary for target architecture
-        ARG TARGETARCH
-        COPY binaries/waddleperf-linux-${TARGETARCH} /usr/local/bin/waddleperf
-        RUN chmod +x /usr/local/bin/waddleperf && \
-            setcap cap_net_raw+ep /usr/bin/traceroute && \
-            setcap cap_net_raw+ep /usr/bin/tcptraceroute
+ARG TARGETARCH
+COPY binaries/waddleperf-linux-${TARGETARCH} /usr/local/bin/waddleperf
+RUN chmod +x /usr/local/bin/waddleperf
 
-        USER waddleperf
-        WORKDIR /home/waddleperf
+USER waddleperf
+WORKDIR /home/waddleperf
 
-        HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-          CMD waddleperf version || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD waddleperf version || exit 1
 
-        ENTRYPOINT ["/usr/local/bin/waddleperf"]
-        CMD ["--help"]
-        EOF
-
-    - name: Prepare Docker tags
-      id: docker_tags
-      run: |
-        TAGS="${{ needs.build-binaries.outputs.container_tags }}"
-        echo "Raw tags: $TAGS"
-
-        # Convert comma-separated string to newline-separated with full image name
-        TAG_LIST=""
-        IFS=',' read -ra TAG_ARRAY <<< "$TAGS"
-        for tag in "${TAG_ARRAY[@]}"; do
-          TAG_LIST="${TAG_LIST}${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"$'\n'
-        done
-
-        echo "Formatted tags:"
-        echo "$TAG_LIST"
-
-        # Set output (use delimiter to handle multiline)
-        echo "tags<<EOF" >> $GITHUB_OUTPUT
-        echo "$TAG_LIST" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+ENTRYPOINT ["/usr/local/bin/waddleperf"]
+CMD ["--help"]
+DOCKERFILE
 
     - name: Build and push Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7
       with:
         context: ./goClient
         file: ./goClient/Dockerfile.runtime
-        platforms: linux/amd64,linux/arm64
+        platforms: ${{ matrix.platform }}
         push: true
-        tags: ${{ steps.docker_tags.outputs.tags }}
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-binaries.outputs.container_tags }}-${{ steps.platform.outputs.arch }}
         labels: |
           org.opencontainers.image.title=WaddlePerf goClient
           org.opencontainers.image.description=Network performance testing client
@@ -333,24 +323,52 @@ jobs:
           org.opencontainers.image.created=${{ github.event.repository.updated_at }}
           org.opencontainers.image.revision=${{ github.sha }}
           org.opencontainers.image.licenses=MIT
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=container-${{ steps.platform.outputs.arch }}
+        cache-to: type=gha,scope=container-${{ steps.platform.outputs.arch }},mode=max
+
+  merge-container-manifests:
+    name: Merge Container Manifests
+    runs-on: ubuntu-latest
+    needs: [build-binaries, build-platform-container]
+    if: always() && needs.build-platform-container.result == 'success'
+
+    steps:
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create and push multi-arch manifests
+      run: |
+        TAGS="${{ needs.build-binaries.outputs.container_tags }}"
+        IFS=',' read -ra TAG_ARRAY <<< "$TAGS"
+
+        for tag in "${TAG_ARRAY[@]}"; do
+          echo "Creating manifest for tag: ${tag}"
+          docker buildx imagetools create \
+            -t "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}-amd64" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}-arm64"
+        done
 
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build-binaries, build-container]
+    needs: [build-binaries, build-platform-container, merge-container-manifests]
     if: always()
 
     steps:
     - name: Build summary
       run: |
-        echo "## 🐧 goClient Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## goClient Build Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
         echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
         echo "| Binaries | ${{ needs.build-binaries.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Container | ${{ needs.build-container.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Container Images | ${{ needs.build-platform-container.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Container Manifests | ${{ needs.merge-container-manifests.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** ${{ needs.build-binaries.outputs.version }}" >> $GITHUB_STEP_SUMMARY
         echo "**Binary Suffix:** \`${{ needs.build-binaries.outputs.binary_suffix }}\`" >> $GITHUB_STEP_SUMMARY
@@ -360,20 +378,13 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
 
         if [[ "${{ github.event_name }}" == "release" ]]; then
-          echo "### ✅ Release Assets" >> $GITHUB_STEP_SUMMARY
+          echo "### Release Assets" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Binaries attached to GitHub Release: [${{ github.ref }}](${{ github.server_url }}/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
+          echo "Binaries attached to GitHub Release" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
         fi
 
-        echo "### 📦 Binary Downloads" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Artifacts are available in the [Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "### 🐳 Docker Image" >> $GITHUB_STEP_SUMMARY
+        echo "### Docker Image" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         FIRST_TAG=$(echo "${{ needs.build-binaries.outputs.container_tags }}" | cut -d',' -f1)
-        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
         echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${FIRST_TAG}" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

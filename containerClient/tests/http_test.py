@@ -129,7 +129,7 @@ class HttpTest:
                     result.time_transfer = (timing_data['request_end'] - timing_data['request_start']) * 1000
 
                 # Detect protocol version
-                if hasattr(response, 'version'):
+                if hasattr(response, 'version') and response.version is not None:
                     if response.version.major == 1 and response.version.minor == 1:
                         result.protocol_detail = "http/1.1"
                     elif response.version.major == 2:

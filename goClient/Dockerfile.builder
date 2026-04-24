@@ -31,6 +31,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /workspace
 
+# Create non-root user (builder stage)
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Copy go modules
 COPY go.mod go.sum ./
 RUN go mod download
@@ -41,5 +44,10 @@ COPY . .
 # Build script for all platforms
 COPY build-all.sh /usr/local/bin/build-all.sh
 RUN chmod 755 /usr/local/bin/build-all.sh
+
+# Set ownership of workspace
+RUN chown -R appuser:appuser /workspace
+
+USER appuser
 
 ENTRYPOINT ["/bin/bash", "/usr/local/bin/build-all.sh"]

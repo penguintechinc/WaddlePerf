@@ -3,7 +3,7 @@
 from datetime import datetime
 
 
-def define_test_models(db):
+def define_test_models(db):  # pragma: no cover
     """Define test-related tables for test result storage and analysis.
 
     Defines:

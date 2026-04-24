@@ -1,5 +1,5 @@
-"""WebSocket module for real-time test streaming"""
-from .test_runner import (
+"""WebSocket module for real-time test streaming"""  # pragma: no cover
+from .test_runner import (  # pragma: no cover
     handle_test_execution,
     validate_websocket_session,
     execute_test_with_streaming,

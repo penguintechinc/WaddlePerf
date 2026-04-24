@@ -1,7 +1,7 @@
 # WaddlePerf webClient API Dockerfile
 # Multi-architecture support (amd64, arm64)
 
-FROM python:3.12-slim
+FROM python:3.13-slim-bookworm@sha256:01f42367a0a94ad4bc17111776fd66e3500c1d87c15bbd6055b7371d39c124fb
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -33,7 +33,7 @@ EXPOSE 5001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5001/health || exit 1
+    CMD curl -f http://localhost:5001/health || exit 1
 
 # Run with gunicorn
 CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--worker-class", "eventlet", "--timeout", "120", "app:app"]

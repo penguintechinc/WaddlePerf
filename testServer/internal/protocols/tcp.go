@@ -97,7 +97,7 @@ func TestTCP(req TCPTestRequest) (*TCPTestResult, error) {
 			iterResult, lastError = testSSH(target, timeout, &TCPTestResult{Target: target, Protocol: protocol})
 		default:
 			result.Error = fmt.Sprintf("unsupported protocol: %s", protocol)
-			return result, fmt.Errorf(result.Error)
+			return result, fmt.Errorf("%s", result.Error)
 		}
 
 		if iterResult != nil {

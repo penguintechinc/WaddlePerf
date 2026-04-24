@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.23-bookworm AS builder
+FROM golang:1.25-bookworm@sha256:29e59af995c51a5bf63d072eca973b918e0e7af4db0e4667aa73f1b8da1a6d8c AS builder
 
 WORKDIR /build
 
@@ -20,22 +20,22 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     ./cmd/testserver
 
 # Runtime stage
-FROM alpine:3.19
+FROM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a
 
 # Install runtime dependencies (for ping, traceroute, etc.)
-RUN apk add --no-cache \
+# NET_RAW capability granted at runtime via K8s securityContext.capabilities.add, not setcap
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     tzdata \
-    iputils \
-    bind-tools \
+    iputils-ping \
+    iputils-tracepath \
+    dnsutils \
     traceroute \
     tcptraceroute \
-    libcap \
     openssh-client && \
-    addgroup -g 1000 waddleperf && \
-    adduser -D -u 1000 -G waddleperf waddleperf && \
-    setcap cap_net_raw+ep /usr/bin/traceroute && \
-    setcap cap_net_raw+ep /usr/bin/tcptraceroute
+    groupadd -g 1000 waddleperf && \
+    useradd -m -u 1000 -g waddleperf waddleperf && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -53,7 +53,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD bash -c 'exec 3<>/dev/tcp/localhost/8080 && echo -e "GET /health HTTP/1.0\r\n\r\n" >&3 || exit 1'
 
 # Set environment defaults
 ENV PORT=8080 \

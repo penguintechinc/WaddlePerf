@@ -1,21 +1,23 @@
 """Organization service for WaddlePerf Unified API"""
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from pydal import DAL
+from penguin_dal import AsyncDB
 
 
 class OrganizationService:
-    """Handle organization CRUD operations with PyDAL"""
+    """Handle organization CRUD operations with penguin-dal AsyncDB"""
 
-    def __init__(self, db: DAL):
+    def __init__(self, db: AsyncDB) -> None:
         """Initialize service with database instance.
 
         Args:
-            db: PyDAL DAL instance
+            db: penguin-dal AsyncDB instance
         """
         self.db = db
 
-    def list_organizations(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def list_organizations(
+        self, limit: int = 100, offset: int = 0
+    ) -> List[Dict[str, Any]]:
         """List all organizations.
 
         Args:
@@ -25,13 +27,13 @@ class OrganizationService:
         Returns:
             List of organization records
         """
-        rows = self.db(self.db.organizations).select(
+        rows = await self.db(self.db.organizations.id > 0).select(
             limitby=(offset, offset + limit),
             orderby=self.db.organizations.created_at,
         )
-        return [dict(row) for row in rows]
+        return [row.as_dict() for row in rows]
 
-    def get_organization(self, org_id: int) -> Optional[Dict[str, Any]]:
+    async def get_organization(self, org_id: int) -> Optional[Dict[str, Any]]:
         """Get organization by ID.
 
         Args:
@@ -40,10 +42,11 @@ class OrganizationService:
         Returns:
             Organization record or None
         """
-        row = self.db.organizations[org_id]
-        return dict(row) if row else None
+        rows = await self.db(self.db.organizations.id == org_id).select()
+        row = rows.first()
+        return row.as_dict() if row else None
 
-    def create_organization(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_organization(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create new organization.
 
         Args:
@@ -52,10 +55,12 @@ class OrganizationService:
         Returns:
             Created organization record
         """
-        org_id = self.db.organizations.insert(**data)
-        return self.get_organization(org_id)
+        org_id = await self.db.organizations.async_insert(**data)
+        return await self.get_organization(org_id)
 
-    def update_organization(self, org_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_organization(
+        self, org_id: int, data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update organization.
 
         Args:
@@ -65,14 +70,14 @@ class OrganizationService:
         Returns:
             Updated organization record or None
         """
-        org = self.db.organizations[org_id]
-        if not org:
+        existing = await self.get_organization(org_id)
+        if not existing:
             return None
         data['updated_at'] = datetime.utcnow()
-        org.update_record(**data)
-        return self.get_organization(org_id)
+        await self.db(self.db.organizations.id == org_id).update(**data)
+        return await self.get_organization(org_id)
 
-    def delete_organization(self, org_id: int) -> bool:
+    async def delete_organization(self, org_id: int) -> bool:
         """Delete organization.
 
         Args:
@@ -81,13 +86,15 @@ class OrganizationService:
         Returns:
             True if successful, False otherwise
         """
-        org = self.db.organizations[org_id]
-        if not org:
+        existing = await self.get_organization(org_id)
+        if not existing:
             return False
-        org.delete_record()
+        await self.db(self.db.organizations.id == org_id).delete()
         return True
 
-    def list_organizational_units(self, org_id: int, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def list_organizational_units(
+        self, org_id: int, limit: int = 100, offset: int = 0
+    ) -> List[Dict[str, Any]]:
         """List organizational units for an organization.
 
         Args:
@@ -98,15 +105,17 @@ class OrganizationService:
         Returns:
             List of organizational unit records
         """
-        rows = self.db(
+        rows = await self.db(
             self.db.organizational_units.organization_id == org_id
         ).select(
             limitby=(offset, offset + limit),
             orderby=self.db.organizational_units.created_at,
         )
-        return [dict(row) for row in rows]
+        return [row.as_dict() for row in rows]
 
-    def get_organizational_unit(self, org_id: int, ou_id: int) -> Optional[Dict[str, Any]]:
+    async def get_organizational_unit(
+        self, org_id: int, ou_id: int
+    ) -> Optional[Dict[str, Any]]:
         """Get organizational unit by ID.
 
         Args:
@@ -116,11 +125,16 @@ class OrganizationService:
         Returns:
             Organizational unit record or None
         """
-        row = self.db((self.db.organizational_units.organization_id == org_id) &
-                      (self.db.organizational_units.id == ou_id)).select().first()
-        return dict(row) if row else None
+        rows = await self.db(
+            (self.db.organizational_units.organization_id == org_id) &
+            (self.db.organizational_units.id == ou_id)
+        ).select()
+        row = rows.first()
+        return row.as_dict() if row else None
 
-    def create_organizational_unit(self, org_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_organizational_unit(
+        self, org_id: int, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Create organizational unit.
 
         Args:
@@ -131,10 +145,12 @@ class OrganizationService:
             Created organizational unit record
         """
         data['organization_id'] = org_id
-        ou_id = self.db.organizational_units.insert(**data)
-        return self.get_organizational_unit(org_id, ou_id)
+        ou_id = await self.db.organizational_units.async_insert(**data)
+        return await self.get_organizational_unit(org_id, ou_id)
 
-    def update_organizational_unit(self, org_id: int, ou_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_organizational_unit(
+        self, org_id: int, ou_id: int, data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update organizational unit.
 
         Args:
@@ -145,15 +161,17 @@ class OrganizationService:
         Returns:
             Updated organizational unit record or None
         """
-        ou = self.db((self.db.organizational_units.organization_id == org_id) &
-                     (self.db.organizational_units.id == ou_id)).select().first()
-        if not ou:
+        existing = await self.get_organizational_unit(org_id, ou_id)
+        if not existing:
             return None
         data['updated_at'] = datetime.utcnow()
-        ou.update_record(**data)
-        return self.get_organizational_unit(org_id, ou_id)
+        await self.db(
+            (self.db.organizational_units.organization_id == org_id) &
+            (self.db.organizational_units.id == ou_id)
+        ).update(**data)
+        return await self.get_organizational_unit(org_id, ou_id)
 
-    def delete_organizational_unit(self, org_id: int, ou_id: int) -> bool:
+    async def delete_organizational_unit(self, org_id: int, ou_id: int) -> bool:
         """Delete organizational unit.
 
         Args:
@@ -163,9 +181,11 @@ class OrganizationService:
         Returns:
             True if successful, False otherwise
         """
-        ou = self.db((self.db.organizational_units.organization_id == org_id) &
-                     (self.db.organizational_units.id == ou_id)).select().first()
-        if not ou:
+        existing = await self.get_organizational_unit(org_id, ou_id)
+        if not existing:
             return False
-        ou.delete_record()
+        await self.db(
+            (self.db.organizational_units.organization_id == org_id) &
+            (self.db.organizational_units.id == ou_id)
+        ).delete()
         return True

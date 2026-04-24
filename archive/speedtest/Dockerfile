@@ -1,9 +1,9 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac AS builder
 
 WORKDIR /build
 
-RUN apk add --no-cache git ca-certificates tzdata
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -17,11 +17,11 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     ./cmd/speedtest
 
 # Runtime stage
-FROM alpine:3.19
+FROM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a
 
-RUN apk add --no-cache ca-certificates tzdata && \
-    addgroup -g 1000 speedtest && \
-    adduser -D -u 1000 -G speedtest speedtest
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 1000 speedtest && \
+    useradd -m -u 1000 -g speedtest speedtest
 
 WORKDIR /app
 
@@ -34,7 +34,7 @@ USER speedtest
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1
+    CMD curl --silent --fail http://localhost:5000/health || exit 1
 
 ENV PORT=5000
 

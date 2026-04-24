@@ -1,22 +1,25 @@
 """Test service for WaddlePerf Unified API"""
 import json
+import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from pydal import DAL
+from penguin_dal import AsyncDB
+
+logger = logging.getLogger(__name__)
 
 
 class TestService:
-    """Handle test result management with PyDAL"""
+    """Handle test result management with penguin-dal AsyncDB"""
 
-    def __init__(self, db: DAL):
+    def __init__(self, db: AsyncDB) -> None:
         """Initialize service with database instance.
 
         Args:
-            db: PyDAL DAL instance
+            db: penguin-dal AsyncDB instance
         """
         self.db = db
 
-    def list_tests(
+    async def list_tests(
         self,
         org_id: int,
         device_id: Optional[int] = None,
@@ -65,14 +68,14 @@ class TestService:
             except ValueError:
                 pass
 
-        rows = self.db(query).select(
+        rows = await self.db(query).select(
             limitby=(offset, offset + limit),
             orderby=~self.db.test_result.created_at
         )
 
         results = []
         for row in rows:
-            result = dict(row)
+            result = row.as_dict()
             # Parse JSON fields
             try:
                 result['metrics'] = json.loads(result.get('metrics', '{}'))
@@ -93,7 +96,7 @@ class TestService:
 
         return results
 
-    def get_test(self, test_id: int) -> Optional[Dict[str, Any]]:
+    async def get_test(self, test_id: int) -> Optional[Dict[str, Any]]:
         """Get test result by ID.
 
         Args:
@@ -102,11 +105,12 @@ class TestService:
         Returns:
             Test result record or None
         """
-        row = self.db.test_result[test_id]
+        rows = await self.db(self.db.test_result.id == test_id).select()
+        row = rows.first()
         if not row:
             return None
 
-        result = dict(row)
+        result = row.as_dict()
         # Parse JSON fields
         try:
             result['metrics'] = json.loads(result.get('metrics', '{}'))
@@ -120,7 +124,7 @@ class TestService:
 
         return result
 
-    def create_test(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def create_test(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Create test result.
 
         Args:
@@ -159,13 +163,13 @@ class TestService:
             test_data['metadata'] = metadata if isinstance(metadata, str) else '{}'
 
         try:
-            test_result_id = self.db.test_result.insert(**test_data)
-            return self.get_test(test_result_id)
+            test_result_id = await self.db.test_result.async_insert(**test_data)
+            return await self.get_test(test_result_id)
         except Exception as e:
-            print(f"Error creating test result: {e}")
+            logger.error(f"Error creating test result: {e}")
             return None
 
-    def delete_test(self, test_id: int) -> bool:
+    async def delete_test(self, test_id: int) -> bool:
         """Delete test result.
 
         Args:
@@ -174,10 +178,9 @@ class TestService:
         Returns:
             True if deleted, False if not found
         """
-        row = self.db.test_result[test_id]
-        if not row:
+        existing = await self.get_test(test_id)
+        if not existing:
             return False
 
-        self.db(self.db.test_result.id == test_id).delete()
-        self.db.commit()
+        await self.db(self.db.test_result.id == test_id).delete()
         return True

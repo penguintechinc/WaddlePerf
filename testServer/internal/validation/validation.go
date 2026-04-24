@@ -134,16 +134,13 @@ func ValidateTarget(target string) error {
 		return &ValidationError{"target", "invalid hostname format"}
 	}
 
-	// Prevent localhost/internal access (basic protection)
+	// Allow localhost/internal addresses (commonly used for development/testing)
+	// Note: lowerHost == "localhost" and IP ranges (127.x, 10.x, 192.168.x, etc) are permitted
+	// This is intentional to support testing against local services
 	lowerHost := strings.ToLower(host)
-	if lowerHost == "localhost" || lowerHost == "0.0.0.0" ||
-	   strings.HasPrefix(lowerHost, "127.") ||
-	   strings.HasPrefix(lowerHost, "169.254.") ||
-	   strings.HasPrefix(lowerHost, "10.") ||
-	   strings.HasPrefix(lowerHost, "192.168.") ||
-	   strings.HasPrefix(lowerHost, "172.16.") {
-		// Allow if explicitly configured to allow internal targets
-		// For now, we'll allow them but log a warning
+	if lowerHost == "0.0.0.0" ||
+	   strings.HasPrefix(lowerHost, "169.254.") {
+		return &ValidationError{"target", "access to invalid targets is prohibited"}
 	}
 
 	return nil

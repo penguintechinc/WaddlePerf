@@ -2,21 +2,21 @@
 import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
-from pydal import DAL
+from penguin_dal import AsyncDB
 
 
 class StatsService:
-    """Handle statistics and aggregation with PyDAL"""
+    """Handle statistics and aggregation with penguin-dal AsyncDB"""
 
-    def __init__(self, db: DAL):
+    def __init__(self, db: AsyncDB) -> None:
         """Initialize service with database instance.
 
         Args:
-            db: PyDAL DAL instance
+            db: penguin-dal AsyncDB instance
         """
         self.db = db
 
-    def get_summary(
+    async def get_summary(
         self,
         org_id: int,
         start_date: Optional[str] = None,
@@ -48,7 +48,7 @@ class StatsService:
             except ValueError:
                 pass
 
-        rows = self.db(query).select()
+        rows = await self.db(query).select()
         total = len(rows)
 
         if total == 0:
@@ -90,7 +90,7 @@ class StatsService:
             'avg_latency_ms': round(avg_latency, 2)
         }
 
-    def get_by_device(
+    async def get_by_device(
         self,
         org_id: int,
         start_date: Optional[str] = None,
@@ -124,10 +124,10 @@ class StatsService:
             except ValueError:
                 pass
 
-        rows = self.db(query).select()
+        rows = await self.db(query).select()
 
         # Aggregate by device_id
-        device_stats = {}
+        device_stats: Dict[Any, Dict[str, Any]] = {}
         for row in rows:
             device_id = row.device_id
             if device_id not in device_stats:
@@ -144,7 +144,9 @@ class StatsService:
 
         # Build results
         results = []
-        for device_id, stats in sorted(device_stats.items(), key=lambda x: x[1]['total'], reverse=True)[:limit]:
+        for device_id, stats in sorted(
+            device_stats.items(), key=lambda x: x[1]['total'], reverse=True
+        )[:limit]:
             total = stats['total']
             success_count = stats['success']
             success_rate = (success_count / total * 100) if total > 0 else 0
@@ -153,7 +155,8 @@ class StatsService:
             # Get device details if available
             device_name = f"Device {device_id}" if device_id else "Unknown"
             if device_id:
-                device_row = self.db.device_device[device_id]
+                device_rows = await self.db(self.db.devices.id == device_id).select()
+                device_row = device_rows.first()
                 if device_row:
                     device_name = device_row.device_name or device_name
 
@@ -168,7 +171,7 @@ class StatsService:
 
         return results
 
-    def get_by_type(
+    async def get_by_type(
         self,
         org_id: int,
         start_date: Optional[str] = None,
@@ -202,10 +205,10 @@ class StatsService:
             except ValueError:
                 pass
 
-        rows = self.db(query).select()
+        rows = await self.db(query).select()
 
         # Aggregate by test_type from metadata
-        type_stats = {}
+        type_stats: Dict[str, Dict[str, Any]] = {}
         for row in rows:
             try:
                 metadata = json.loads(row.metadata or '{}')
@@ -227,7 +230,9 @@ class StatsService:
 
         # Build results
         results = []
-        for test_type, stats in sorted(type_stats.items(), key=lambda x: x[1]['total'], reverse=True)[:limit]:
+        for test_type, stats in sorted(
+            type_stats.items(), key=lambda x: x[1]['total'], reverse=True
+        )[:limit]:
             total = stats['total']
             success_count = stats['success']
             success_rate = (success_count / total * 100) if total > 0 else 0
@@ -243,7 +248,7 @@ class StatsService:
 
         return results
 
-    def get_trends(
+    async def get_trends(
         self,
         org_id: int,
         start_date: Optional[str] = None,
@@ -279,10 +284,12 @@ class StatsService:
             except ValueError:
                 pass
 
-        rows = self.db(query).select(orderby=self.db.test_result.created_at)
+        rows = await self.db(query).select(
+            orderby=self.db.test_result.created_at
+        )
 
         # Aggregate by time interval
-        time_buckets = {}
+        time_buckets: Dict[str, Dict[str, Any]] = {}
         for row in rows:
             dt = row.created_at
             if interval == 'hourly':
@@ -332,7 +339,7 @@ class StatsService:
             'interval': interval
         }
 
-    def get_recent(
+    async def get_recent(
         self,
         org_id: int,
         device_id: Optional[int] = None,
@@ -353,14 +360,14 @@ class StatsService:
         if device_id:
             query = query & (self.db.test_result.device_id == device_id)
 
-        rows = self.db(query).select(
+        rows = await self.db(query).select(
             limitby=(0, limit),
             orderby=~self.db.test_result.created_at
         )
 
         results = []
         for row in rows:
-            result = dict(row)
+            result = row.as_dict()
             # Parse JSON fields
             try:
                 result['metrics'] = json.loads(result.get('metrics', '{}'))

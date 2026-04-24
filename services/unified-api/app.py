@@ -4,15 +4,14 @@ import asyncio
 from typing import Optional
 from quart import Quart, jsonify, current_app
 from quart_cors import cors
-from pydal import DAL
+from penguintechinc_utils.logging import get_logger
 
 from config import Config
-from database.schema import initialize_schema
-from database.connection import get_dal, close_dal
+from database.connection import init_dal, get_db, build_db_uri
 from routes import auth_bp, organizations_bp, devices_bp
 from services.auth_service import AuthService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_app(config_obj: Optional[Config] = None) -> Quart:
@@ -38,6 +37,9 @@ def create_app(config_obj: Optional[Config] = None) -> Quart:
     app.config['JWT_SECRET'] = config_obj.JWT_SECRET
     app.config['JWT_EXPIRATION_HOURS'] = config_obj.JWT_EXPIRATION_HOURS
 
+    # Set DATABASE_URI for penguin-dal init_dal()
+    app.config['DATABASE_URI'] = build_db_uri(config_obj)
+
     # Configure logging
     logging.basicConfig(level=config_obj.LOG_LEVEL)
 
@@ -45,31 +47,19 @@ def create_app(config_obj: Optional[Config] = None) -> Quart:
     cors_origins = [origin.strip() for origin in config_obj.CORS_ORIGINS.split(',')]
     cors(app, allow_origin=cors_origins)
 
-    # Initialize database schema (SQLAlchemy - one-time creation)
-    try:
-        initialize_schema(config_obj)
-    except Exception as e:
-        logger.warning(f"Schema initialization warning (may already exist): {str(e)}")
+    # Initialize penguin-dal (registers before_serving reflect + after_serving close)
+    init_dal(app, pool_size=config_obj.DB_POOL_SIZE)
 
-    # Initialize PyDAL for runtime operations
-    db = get_dal(config_obj)
-    app.db = db
+    # Store config for later access
     app.config_obj = config_obj
 
-    # Initialize services
-    app.auth_service = AuthService(db, config_obj)
-
-    # Store database instance for later access
     @app.before_serving
-    async def setup_db():
-        """Setup database connection on app startup"""
-        logger.info("Database initialized on app startup")
-
-    @app.after_serving
-    async def cleanup_db():
-        """Close database connection on app shutdown"""
-        close_dal(app.db)
-        logger.info("Database connection closed on app shutdown")
+    async def setup_services():
+        """Initialize services after DB reflection is complete."""
+        db = get_db()
+        app.db = db
+        app.auth_service = AuthService(db, config_obj)
+        logger.info("Services initialized on app startup")
 
     # Register blueprints with API versioning
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
@@ -85,9 +75,15 @@ def create_app(config_obj: Optional[Config] = None) -> Quart:
             JSON response with health status and database health
         """
         try:
-            # Check database connectivity
-            health_row = app.db.executesql('SELECT 1')
-            db_healthy = health_row is not None
+            db = get_db()
+            # Check database connectivity via a simple count query
+            from penguin_dal.query import AsyncQuerySet
+            from sqlalchemy import text
+            from sqlalchemy.ext.asyncio import AsyncSession
+
+            async with db.engine.connect() as conn:
+                await conn.execute(text('SELECT 1'))
+            db_healthy = True
 
             return jsonify({
                 'status': 'healthy' if db_healthy else 'unhealthy',

@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: waddleperf
+namePrefix: alpha-
+commonLabels:
+  environment: alpha
+resources:
+  - ../../base
+replicas:
+  - name: testserver
+    count: 1
+  - name: unified-api
+    count: 1
+  - name: webui
+    count: 1
+images:
+  - name: ghcr.io/penguintechinc/waddleperf/testserver
+    newTag: beta
+  - name: ghcr.io/penguintechinc/waddleperf/unified-api
+    newTag: beta
+  - name: ghcr.io/penguintechinc/waddleperf/webui
+    newTag: beta
+configMapGenerator:
+  - name: waddleperf-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=DEBUG
+      - RELEASE_MODE=false

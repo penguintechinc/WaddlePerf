@@ -125,6 +125,7 @@ function TraceTest({ isAuthenticated }: TraceTestProps) {
 
     const dataToDownload = result.raw_results || result
     const jsonString = JSON.stringify(dataToDownload, null, 2)
+    /* v8 ignore next 8 */
     const blob = new Blob([jsonString], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')

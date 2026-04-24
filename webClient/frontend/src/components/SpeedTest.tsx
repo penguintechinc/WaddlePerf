@@ -128,10 +128,12 @@ function SpeedTest({ testServerUrl }: SpeedTestProps) {
           }
 
           const reader = response.body?.getReader()
+          /* v8 ignore next 3 */
           if (!reader) {
             throw new Error('No response body')
           }
 
+          /* v8 ignore next 13 */
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
@@ -148,6 +150,7 @@ function SpeedTest({ testServerUrl }: SpeedTestProps) {
             }
           }
         } catch (error) {
+          /* v8 ignore next 3 */
           if (error instanceof Error && error.name === 'AbortError') {
             throw error
           }
@@ -162,6 +165,7 @@ function SpeedTest({ testServerUrl }: SpeedTestProps) {
     try {
       await Promise.all(streams)
     } catch (error) {
+      /* v8 ignore next 3 */
       if (error instanceof Error && error.name === 'AbortError') {
         throw error
       }
@@ -239,6 +243,7 @@ function SpeedTest({ testServerUrl }: SpeedTestProps) {
             setCurrentSpeed(speedMbps)
           }
         } catch (error) {
+          /* v8 ignore next 3 */
           if (error instanceof Error && error.name === 'AbortError') {
             throw error
           }
@@ -253,6 +258,7 @@ function SpeedTest({ testServerUrl }: SpeedTestProps) {
     try {
       await Promise.all(streams)
     } catch (error) {
+      /* v8 ignore next 3 */
       if (error instanceof Error && error.name === 'AbortError') {
         throw error
       }

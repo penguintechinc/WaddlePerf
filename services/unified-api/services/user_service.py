@@ -1,14 +1,14 @@
-"""User management service with PyDAL database operations"""
+"""User management service with penguin-dal AsyncDB operations"""
 
 import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from bcrypt import hashpw, gensalt
-from pydal import DAL, Field
+from penguin_dal import AsyncDB
 
 
 class UserService:
-    """Service for user management operations using PyDAL.
+    """Service for user management operations using penguin-dal AsyncDB.
 
     Handles:
         - User CRUD operations
@@ -17,11 +17,11 @@ class UserService:
         - Pagination and search
     """
 
-    def __init__(self, db: Optional[DAL] = None):
+    def __init__(self, db: Optional[AsyncDB] = None) -> None:
         """Initialize UserService.
 
         Args:
-            db: PyDAL DAL instance (injected for testing/flexibility)
+            db: penguin-dal AsyncDB instance (injected for testing/flexibility)
         """
         self.db = db
 
@@ -46,7 +46,7 @@ class UserService:
             offset = (page - 1) * limit
 
             # Build query
-            query = self.db.auth_user.active == True
+            query = self.db.auth_user.active == True  # noqa: E712
 
             # Add search filter if provided
             if search:
@@ -59,11 +59,10 @@ class UserService:
                 )
 
             # Get total count
-            total = self.db(query).count()
+            total = await self.db(query).count()
 
             # Fetch paginated results
-            rows = self.db(query).select(
-                self.db.auth_user.ALL,
+            rows = await self.db(query).select(
                 orderby=self.db.auth_user.created_at,
                 limitby=(offset, offset + limit)
             )
@@ -91,7 +90,8 @@ class UserService:
             User dict with roles or None if not found
         """
         try:
-            row = self.db.auth_user[user_id]
+            rows = await self.db(self.db.auth_user.id == user_id).select()
+            row = rows.first()
             if not row:
                 return None
             return await self._serialize_user(row)
@@ -127,10 +127,10 @@ class UserService:
                 raise ValueError('Email, username, and password are required')
 
             # Check uniqueness
-            if self.db(self.db.auth_user.email == email).count() > 0:
+            if await self.db(self.db.auth_user.email == email).count() > 0:
                 raise ValueError(f'Email {email} already exists')
 
-            if self.db(self.db.auth_user.username == username).count() > 0:
+            if await self.db(self.db.auth_user.username == username).count() > 0:
                 raise ValueError(f'Username {username} already exists')
 
             # Hash password
@@ -140,7 +140,7 @@ class UserService:
             fs_uniquifier = str(uuid.uuid4())
 
             # Insert user
-            user_id = self.db.auth_user.insert(
+            user_id = await self.db.auth_user.async_insert(
                 email=email,
                 username=username,
                 password=hashed_password,
@@ -152,28 +152,24 @@ class UserService:
                 updated_at=datetime.utcnow()
             )
 
-            self.db.commit()
-
             # Assign roles if provided
             role_ids = data.get('role_ids', [])
             if role_ids:
                 for role_id in role_ids:
-                    self.db.auth_user_role.insert(
+                    await self.db.auth_user_role.async_insert(
                         user_id=user_id,
                         role_id=role_id,
                         created_at=datetime.utcnow()
                     )
-                self.db.commit()
 
             # Fetch and return created user
-            user_row = self.db.auth_user[user_id]
+            rows = await self.db(self.db.auth_user.id == user_id).select()
+            user_row = rows.first()
             return await self._serialize_user(user_row)
 
         except ValueError:
-            self.db.rollback()
             raise
         except Exception as e:
-            self.db.rollback()
             raise Exception(f'Error creating user: {str(e)}')
 
     async def update_user(
@@ -197,10 +193,11 @@ class UserService:
         """
         try:
             # Check user exists
-            if not self.db.auth_user[user_id]:
+            rows = await self.db(self.db.auth_user.id == user_id).select()
+            if not rows.first():
                 return None
 
-            update_data = {}
+            update_data: Dict[str, Any] = {}
 
             # Update basic fields
             if 'first_name' in data:
@@ -219,29 +216,27 @@ class UserService:
 
             # Update user record
             if update_data:
-                self.db(self.db.auth_user.id == user_id).update(**update_data)
-                self.db.commit()
+                await self.db(self.db.auth_user.id == user_id).update(**update_data)
 
             # Update roles if provided
             if 'role_ids' in data:
                 role_ids = data['role_ids']
                 # Delete existing roles
-                self.db(self.db.auth_user_role.user_id == user_id).delete()
+                await self.db(self.db.auth_user_role.user_id == user_id).delete()
                 # Insert new roles
                 for role_id in role_ids:
-                    self.db.auth_user_role.insert(
+                    await self.db.auth_user_role.async_insert(
                         user_id=user_id,
                         role_id=role_id,
                         created_at=datetime.utcnow()
                     )
-                self.db.commit()
 
             # Fetch and return updated user
-            user_row = self.db.auth_user[user_id]
+            updated_rows = await self.db(self.db.auth_user.id == user_id).select()
+            user_row = updated_rows.first()
             return await self._serialize_user(user_row)
 
         except Exception as e:
-            self.db.rollback()
             raise Exception(f'Error updating user: {str(e)}')
 
     async def delete_user(self, user_id: int) -> bool:
@@ -255,23 +250,22 @@ class UserService:
         """
         try:
             # Check user exists
-            if not self.db.auth_user[user_id]:
+            rows = await self.db(self.db.auth_user.id == user_id).select()
+            if not rows.first():
                 return False
 
             # Delete user (cascade will remove roles)
-            self.db(self.db.auth_user.id == user_id).delete()
-            self.db.commit()
+            await self.db(self.db.auth_user.id == user_id).delete()
 
             return True
         except Exception as e:
-            self.db.rollback()
             raise Exception(f'Error deleting user: {str(e)}')
 
-    async def _serialize_user(self, user_row) -> Dict[str, Any]:
-        """Convert PyDAL Row to user dict with roles.
+    async def _serialize_user(self, user_row: Any) -> Dict[str, Any]:
+        """Convert penguin-dal Row to user dict with roles.
 
         Args:
-            user_row: PyDAL Row object from auth_user table
+            user_row: Row object from auth_user table
 
         Returns:
             User dict with id, email, username, profile fields, active status, and roles list
@@ -279,24 +273,25 @@ class UserService:
         if not user_row:
             return {}
 
-        # Fetch user roles
-        role_rows = self.db(
+        # Fetch user roles with left join via separate query
+        role_rows = await self.db(
             self.db.auth_user_role.user_id == user_row.id
-        ).select(
-            self.db.auth_user_role.ALL,
-            left=self.db.auth_role.on(
-                self.db.auth_user_role.role_id == self.db.auth_role.id
-            )
-        )
+        ).select()
 
-        roles = []
+        roles: List[Dict[str, Any]] = []
         for role_row in role_rows:
-            roles.append({
-                'id': role_row.auth_role.id,
-                'name': role_row.auth_role.name,
-                'description': role_row.auth_role.description,
-                'scopes': role_row.auth_role.scopes.split(',') if role_row.auth_role.scopes else []
-            })
+            # Fetch role details
+            auth_role_rows = await self.db(
+                self.db.auth_role.id == role_row.role_id
+            ).select()
+            auth_role = auth_role_rows.first()
+            if auth_role:
+                roles.append({
+                    'id': auth_role.id,
+                    'name': auth_role.name,
+                    'description': auth_role.description,
+                    'scopes': auth_role.scopes.split(',') if auth_role.scopes else []
+                })
 
         return {
             'id': user_row.id,

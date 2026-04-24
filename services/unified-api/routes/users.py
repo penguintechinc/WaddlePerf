@@ -10,7 +10,8 @@ users_bp = Blueprint('users', __name__)
 
 async def _get_user_service():
     """Helper to get UserService instance"""
-    return UserService()
+    from quart import current_app
+    return UserService(current_app.db)
 
 
 @users_bp.route('/', methods=['GET'])

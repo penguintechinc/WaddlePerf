@@ -80,6 +80,9 @@ docker compose -f ~/.claude/mcp/mem0/docker-compose.yml down      # stop
 
 The following rules **add to** the critical rules in root `CLAUDE.md`. See root for base git, code quality, and standards references.
 
+**Response Style:**
+- **Be concise** — lead with the answer, skip preamble, no trailing summaries. See [`.claude/rules/general.md`](.claude/rules/general.md) for the full brevity standard. Applies to all responses, skills, and rule files.
+
 **Git Branch Rules:**
 - **NEVER edit code directly on `main`** — always work on a feature branch
 - **CHECK current branch before any code change**: if on `main`, create and switch to a feature branch first (`git checkout -b feature/<name>`)
@@ -96,7 +99,6 @@ The following rules **add to** the critical rules in root `CLAUDE.md`. See root 
   - Find files by name → **Glob** tool (not `find`, `ls`)
 - Only fall back to Bash for these commands when the dedicated tool genuinely cannot accomplish the task (e.g., piped shell pipelines, complex transformations)
 - This reduces unnecessary approval prompts and keeps operations auditable
-
 ---
 
 ## Version Increment Rule

@@ -23,7 +23,7 @@ async def list_devices() -> Tuple[Dict[str, Any], int]:
     offset = request.args.get('offset', 0, type=int)
 
     service = DeviceService(current_app.db)
-    devices = service.list_devices(org_id=org_id, limit=limit, offset=offset)
+    devices = await service.list_devices(org_id=org_id, limit=limit, offset=offset)
 
     return {'status': 'success', 'data': devices}, 200
 
@@ -39,7 +39,7 @@ async def get_device(device_id: int) -> Tuple[Dict[str, Any], int]:
         JSON response with device details
     """
     service = DeviceService(current_app.db)
-    device = service.get_device(device_id)
+    device = await service.get_device(device_id)
 
     if not device:
         return {'status': 'error', 'message': 'Device not found'}, 404
@@ -80,7 +80,7 @@ async def enroll_device() -> Tuple[Dict[str, Any], int]:
     org_id = data.pop('org_id')
 
     service = DeviceService(current_app.db)
-    device = service.enroll_device(enrollment_secret, org_id, data)
+    device = await service.enroll_device(enrollment_secret, org_id, data)
 
     if not device:
         return {'status': 'error', 'message': 'Invalid or expired enrollment secret'}, 400
@@ -116,7 +116,7 @@ async def update_device(device_id: int) -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Request body is required'}, 400
 
     service = DeviceService(current_app.db)
-    device = service.update_device(device_id, data)
+    device = await service.update_device(device_id, data)
 
     if not device:
         return {'status': 'error', 'message': 'Device not found'}, 404
@@ -135,7 +135,7 @@ async def delete_device(device_id: int) -> Tuple[Dict[str, Any], int]:
         JSON response
     """
     service = DeviceService(current_app.db)
-    success = service.delete_device(device_id)
+    success = await service.delete_device(device_id)
 
     if not success:
         return {'status': 'error', 'message': 'Device not found'}, 404
@@ -166,7 +166,7 @@ async def create_enrollment_secret() -> Tuple[Dict[str, Any], int]:
     org_id = data.pop('org_id')
 
     service = DeviceService(current_app.db)
-    secret = service.create_enrollment_secret(org_id, data)
+    secret = await service.create_enrollment_secret(org_id, data)
 
     return {'status': 'success', 'data': secret}, 201
 
@@ -191,6 +191,6 @@ async def list_enrollment_secrets() -> Tuple[Dict[str, Any], int]:
         return {'status': 'error', 'message': 'Missing required query parameter: org_id'}, 400
 
     service = DeviceService(current_app.db)
-    secrets = service.list_enrollment_secrets(org_id, limit=limit, offset=offset)
+    secrets = await service.list_enrollment_secrets(org_id, limit=limit, offset=offset)
 
     return {'status': 'success', 'data': secrets}, 200

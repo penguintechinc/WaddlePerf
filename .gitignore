@@ -64,8 +64,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-package-lock.json
-!website/package-lock.json
+!package-lock.json
 yarn.lock
 .pnpm-debug.log
 .env
@@ -86,6 +85,8 @@ pip-log.txt
 pip-delete-this-directory.txt
 .tox/
 .coverage
+coverage.xml
+coverage/
 .cache
 .pytest_cache/
 .mypy_cache/
@@ -100,8 +101,7 @@ bin/
 *.exe
 *.test
 *.out
-*.mod
-*.sum
+# *.mod and *.sum should not be ignored
 vendor/
 coverage.out
 go-client/test-dist/

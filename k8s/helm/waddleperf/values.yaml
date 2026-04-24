@@ -1,0 +1,25 @@
+namespace: waddleperf
+replicaCount: 1
+image:
+  registry: registry-dal2.penguintech.io
+  pullPolicy: IfNotPresent
+services:
+  testserver:
+    image: waddleperf-testserver
+    port: 8080
+  unifiedApi:
+    image: waddleperf-unified-api
+    port: 5000
+  webui:
+    image: waddleperf-webui
+    port: 3000
+  mariadb:
+    image: mariadb
+    port: 3306
+env:
+  LOG_LEVEL: INFO
+  RELEASE_MODE: "true"
+ingress:
+  enabled: true
+  hosts:
+    - host: waddleperf.penguintech.io

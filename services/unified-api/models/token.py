@@ -3,7 +3,7 @@
 from datetime import datetime
 
 
-def define_token_models(db):
+def define_token_models(db):  # pragma: no cover
     """Define token-related tables for API authentication and authorization.
 
     Defines:

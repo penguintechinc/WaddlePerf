@@ -1,7 +1,7 @@
 # Multi-stage build for managerServer (unified API + Frontend)
 
 # Stage 1: Build React frontend
-FROM node:18-alpine AS frontend-builder
+FROM node:20-bookworm-slim@sha256:1e85773c98c31d4fe5b545e4cb17379e617b348832fb3738b22a08f68dec30f3 AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -14,7 +14,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build Python API with embedded frontend
-FROM python:3.12-slim
+FROM python:3.13-slim-bookworm@sha256:01f42367a0a94ad4bc17111776fd66e3500c1d87c15bbd6055b7371d39c124fb
 
 WORKDIR /app
 
@@ -49,7 +49,7 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1
+    CMD curl -f http://localhost:5000/health || exit 1
 
 # Environment defaults
 ENV PORT=5000 \

@@ -1,17 +1,21 @@
 """System configuration routes (FleetDM-style)"""
 from flask import Blueprint, jsonify, request
-from models import db, SystemConfig, User
+from models import row_to_user, row_to_system_config
 from routes.auth import get_user_from_token
+from penguin_dal.flask_ext import get_db
 import json
 
 config_bp = Blueprint('config', __name__)
 
-def require_admin(user_id):
+
+def require_admin(user_id: int) -> bool:
     """Check if user is global_admin"""
-    user = User.query.get(user_id)
-    if not user or user.role != 'global_admin':
+    db = get_db()
+    user_row = db.users[user_id]
+    if not user_row or user_row.role != 'global_admin':
         return False
     return True
+
 
 @config_bp.route('', methods=['GET'])
 def get_all_config():
@@ -23,15 +27,17 @@ def get_all_config():
     if not require_admin(user_id):
         return jsonify({'error': 'Admin access required'}), 403
 
-    configs = SystemConfig.query.all()
+    db = get_db()
+    config_rows = db(db.system_config.id > 0).select()
+
     config_dict = {}
-    for config in configs:
+    for row in config_rows:
+        config = row_to_system_config(row)
         value = config.config_value
-        # Parse JSON values
         if config.config_type == 'json' and value:
             try:
                 value = json.loads(value)
-            except:
+            except Exception:
                 pass
         elif config.config_type == 'boolean':
             value = value.lower() == 'true' if value else False
@@ -47,22 +53,25 @@ def get_all_config():
 
     return jsonify({'config': config_dict})
 
+
 @config_bp.route('/<key>', methods=['GET'])
-def get_config(key):
+def get_config(key: str):
     """Get a specific configuration value"""
     user_id = get_user_from_token()
     if not user_id:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    config = SystemConfig.query.filter_by(config_key=key).first()
-    if not config:
+    db = get_db()
+    row = db(db.system_config.config_key == key).select().first()
+    if not row:
         return jsonify({'error': 'Configuration not found'}), 404
 
+    config = row_to_system_config(row)
     value = config.config_value
     if config.config_type == 'json' and value:
         try:
             value = json.loads(value)
-        except:
+        except Exception:
             pass
     elif config.config_type == 'boolean':
         value = value.lower() == 'true' if value else False
@@ -75,6 +84,7 @@ def get_config(key):
         'type': config.config_type,
         'description': config.description
     })
+
 
 @config_bp.route('', methods=['PATCH'])
 def update_config():
@@ -90,36 +100,39 @@ def update_config():
     if not data:
         return jsonify({'error': 'No data provided'}), 400
 
+    db = get_db()
     updated = []
     errors = []
 
     for key, value in data.items():
-        config = SystemConfig.query.filter_by(config_key=key).first()
-        if not config:
+        row = db(db.system_config.config_key == key).select().first()
+        if not row:
             errors.append(f'Configuration key "{key}" not found')
             continue
 
-        # Convert value to string for storage
+        config = row_to_system_config(row)
+
         if config.config_type == 'json':
-            config.config_value = json.dumps(value)
+            new_value = json.dumps(value)
         elif config.config_type == 'boolean':
-            config.config_value = 'true' if value else 'false'
+            new_value = 'true' if value else 'false'
         else:
-            config.config_value = str(value)
+            new_value = str(value)
 
-        config.updated_by = user_id
+        db(db.system_config.config_key == key).update(
+            config_value=new_value,
+            updated_by=user_id,
+        )
         updated.append(key)
-
-    if updated:
-        db.session.commit()
 
     return jsonify({
         'updated': updated,
         'errors': errors
     })
 
+
 @config_bp.route('/<key>', methods=['PUT'])
-def set_config(key):
+def set_config(key: str):
     """Set a specific configuration value (admin only)"""
     user_id = get_user_from_token()
     if not user_id:
@@ -132,22 +145,25 @@ def set_config(key):
     if 'value' not in data:
         return jsonify({'error': 'Value required'}), 400
 
-    config = SystemConfig.query.filter_by(config_key=key).first()
-    if not config:
+    db = get_db()
+    row = db(db.system_config.config_key == key).select().first()
+    if not row:
         return jsonify({'error': 'Configuration not found'}), 404
 
+    config = row_to_system_config(row)
     value = data['value']
 
-    # Convert value to string for storage
     if config.config_type == 'json':
-        config.config_value = json.dumps(value)
+        new_value = json.dumps(value)
     elif config.config_type == 'boolean':
-        config.config_value = 'true' if value else 'false'
+        new_value = 'true' if value else 'false'
     else:
-        config.config_value = str(value)
+        new_value = str(value)
 
-    config.updated_by = user_id
-    db.session.commit()
+    db(db.system_config.config_key == key).update(
+        config_value=new_value,
+        updated_by=user_id,
+    )
 
     return jsonify({
         'config_key': config.config_key,

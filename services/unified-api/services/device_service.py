@@ -1,22 +1,24 @@
 """Device service for WaddlePerf Unified API"""
 import secrets
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
-from pydal import DAL
+from datetime import datetime
+from penguin_dal import AsyncDB
 
 
 class DeviceService:
-    """Handle device management with PyDAL"""
+    """Handle device management with penguin-dal AsyncDB"""
 
-    def __init__(self, db: DAL):
+    def __init__(self, db: AsyncDB) -> None:
         """Initialize service with database instance.
 
         Args:
-            db: PyDAL DAL instance
+            db: penguin-dal AsyncDB instance
         """
         self.db = db
 
-    def list_devices(self, org_id: Optional[int] = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def list_devices(
+        self, org_id: Optional[int] = None, limit: int = 100, offset: int = 0
+    ) -> List[Dict[str, Any]]:
         """List devices with optional filtering.
 
         Args:
@@ -32,13 +34,13 @@ class DeviceService:
         else:
             query = self.db.devices.id > 0
 
-        rows = self.db(query).select(
+        rows = await self.db(query).select(
             limitby=(offset, offset + limit),
             orderby=self.db.devices.created_at,
         )
-        return [dict(row) for row in rows]
+        return [row.as_dict() for row in rows]
 
-    def get_device(self, device_id: int) -> Optional[Dict[str, Any]]:
+    async def get_device(self, device_id: int) -> Optional[Dict[str, Any]]:
         """Get device by ID.
 
         Args:
@@ -47,10 +49,11 @@ class DeviceService:
         Returns:
             Device record or None
         """
-        row = self.db.devices[device_id]
-        return dict(row) if row else None
+        rows = await self.db(self.db.devices.id == device_id).select()
+        row = rows.first()
+        return row.as_dict() if row else None
 
-    def get_device_by_device_id(self, device_id_str: str) -> Optional[Dict[str, Any]]:
+    async def get_device_by_device_id(self, device_id_str: str) -> Optional[Dict[str, Any]]:
         """Get device by device_id string.
 
         Args:
@@ -59,10 +62,13 @@ class DeviceService:
         Returns:
             Device record or None
         """
-        row = self.db(self.db.devices.device_id == device_id_str).select().first()
-        return dict(row) if row else None
+        rows = await self.db(self.db.devices.device_id == device_id_str).select()
+        row = rows.first()
+        return row.as_dict() if row else None
 
-    def enroll_device(self, enrollment_secret: str, org_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def enroll_device(
+        self, enrollment_secret: str, org_id: int, data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Enroll device using enrollment secret.
 
         Args:
@@ -74,9 +80,12 @@ class DeviceService:
             Created device record or None
         """
         # Verify secret is valid
-        secret_row = self.db((self.db.enrollment_secrets.secret_token == enrollment_secret) &
-                              (self.db.enrollment_secrets.organization_id == org_id) &
-                              (self.db.enrollment_secrets.is_active == True)).select().first()
+        rows = await self.db(
+            (self.db.enrollment_secrets.secret_token == enrollment_secret) &
+            (self.db.enrollment_secrets.organization_id == org_id) &
+            (self.db.enrollment_secrets.is_active == True)  # noqa: E712
+        ).select()
+        secret_row = rows.first()
 
         if not secret_row:
             return None
@@ -94,14 +103,18 @@ class DeviceService:
         if 'device_id' not in data:
             data['device_id'] = secrets.token_hex(16)
 
-        device_id = self.db.devices.insert(**data)
+        device_id = await self.db.devices.async_insert(**data)
 
         # Increment secret usage
-        secret_row.update_record(current_uses=secret_row.current_uses + 1)
+        await self.db(self.db.enrollment_secrets.id == secret_row.id).update(
+            current_uses=secret_row.current_uses + 1
+        )
 
-        return self.get_device(device_id)
+        return await self.get_device(device_id)
 
-    def update_device(self, device_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_device(
+        self, device_id: int, data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update device.
 
         Args:
@@ -111,14 +124,14 @@ class DeviceService:
         Returns:
             Updated device record or None
         """
-        device = self.db.devices[device_id]
-        if not device:
+        existing = await self.get_device(device_id)
+        if not existing:
             return None
         data['updated_at'] = datetime.utcnow()
-        device.update_record(**data)
-        return self.get_device(device_id)
+        await self.db(self.db.devices.id == device_id).update(**data)
+        return await self.get_device(device_id)
 
-    def delete_device(self, device_id: int) -> bool:
+    async def delete_device(self, device_id: int) -> bool:
         """Delete device.
 
         Args:
@@ -127,13 +140,15 @@ class DeviceService:
         Returns:
             True if successful, False otherwise
         """
-        device = self.db.devices[device_id]
-        if not device:
+        existing = await self.get_device(device_id)
+        if not existing:
             return False
-        device.delete_record()
+        await self.db(self.db.devices.id == device_id).delete()
         return True
 
-    def create_enrollment_secret(self, org_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_enrollment_secret(
+        self, org_id: int, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Create enrollment secret.
 
         Args:
@@ -147,10 +162,10 @@ class DeviceService:
         if 'secret_token' not in data:
             data['secret_token'] = secrets.token_urlsafe(32)
 
-        secret_id = self.db.enrollment_secrets.insert(**data)
-        return self.get_enrollment_secret(secret_id)
+        secret_id = await self.db.enrollment_secrets.async_insert(**data)
+        return await self.get_enrollment_secret(secret_id)
 
-    def get_enrollment_secret(self, secret_id: int) -> Optional[Dict[str, Any]]:
+    async def get_enrollment_secret(self, secret_id: int) -> Optional[Dict[str, Any]]:
         """Get enrollment secret by ID.
 
         Args:
@@ -159,10 +174,13 @@ class DeviceService:
         Returns:
             Enrollment secret record or None
         """
-        row = self.db.enrollment_secrets[secret_id]
-        return dict(row) if row else None
+        rows = await self.db(self.db.enrollment_secrets.id == secret_id).select()
+        row = rows.first()
+        return row.as_dict() if row else None
 
-    def list_enrollment_secrets(self, org_id: int, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def list_enrollment_secrets(
+        self, org_id: int, limit: int = 100, offset: int = 0
+    ) -> List[Dict[str, Any]]:
         """List enrollment secrets for organization.
 
         Args:
@@ -173,15 +191,17 @@ class DeviceService:
         Returns:
             List of enrollment secret records
         """
-        rows = self.db(
+        rows = await self.db(
             self.db.enrollment_secrets.organization_id == org_id
         ).select(
             limitby=(offset, offset + limit),
             orderby=self.db.enrollment_secrets.created_at,
         )
-        return [dict(row) for row in rows]
+        return [row.as_dict() for row in rows]
 
-    def update_enrollment_secret(self, secret_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_enrollment_secret(
+        self, secret_id: int, data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update enrollment secret.
 
         Args:
@@ -191,14 +211,14 @@ class DeviceService:
         Returns:
             Updated enrollment secret record or None
         """
-        secret = self.db.enrollment_secrets[secret_id]
-        if not secret:
+        existing = await self.get_enrollment_secret(secret_id)
+        if not existing:
             return None
         data['updated_at'] = datetime.utcnow()
-        secret.update_record(**data)
-        return self.get_enrollment_secret(secret_id)
+        await self.db(self.db.enrollment_secrets.id == secret_id).update(**data)
+        return await self.get_enrollment_secret(secret_id)
 
-    def delete_enrollment_secret(self, secret_id: int) -> bool:
+    async def delete_enrollment_secret(self, secret_id: int) -> bool:
         """Delete enrollment secret.
 
         Args:
@@ -207,8 +227,8 @@ class DeviceService:
         Returns:
             True if successful, False otherwise
         """
-        secret = self.db.enrollment_secrets[secret_id]
-        if not secret:
+        existing = await self.get_enrollment_secret(secret_id)
+        if not existing:
             return False
-        secret.delete_record()
+        await self.db(self.db.enrollment_secrets.id == secret_id).delete()
         return True

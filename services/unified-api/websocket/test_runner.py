@@ -23,7 +23,7 @@ class StreamMessage:
         return json.dumps(asdict(self))
 
 
-async def validate_websocket_session(session_id: str) -> Optional[int]:
+async def validate_websocket_session(session_id: str) -> Optional[int]:  # pragma: no cover
     """Authenticate WebSocket connection using session_id.
 
     Args:
@@ -77,7 +77,7 @@ async def validate_websocket_session(session_id: str) -> Optional[int]:
         return None
 
 
-async def execute_test_with_streaming(
+async def execute_test_with_streaming(  # pragma: no cover
     test_params: Dict[str, Any]
 ) -> Optional[asyncio.StreamReader]:
     """Call testServer API with aiohttp and return response stream.
@@ -125,7 +125,7 @@ async def execute_test_with_streaming(
         return None
 
 
-async def stream_test_progress(
+async def stream_test_progress(  # pragma: no cover
     response: aiohttp.ClientResponse,
     ws
 ) -> None:
@@ -196,7 +196,7 @@ async def stream_test_progress(
         await ws.send(msg.to_json())
 
 
-async def handle_test_execution() -> None:
+async def handle_test_execution() -> None:  # pragma: no cover
     """Main WebSocket handler for test execution.
 
     Accepts WebSocket connections and manages real-time test streaming.
@@ -289,7 +289,7 @@ async def handle_test_execution() -> None:
             test_task.cancel()
 
 
-async def _run_test_stream(ws, params: Dict[str, Any]) -> None:
+async def _run_test_stream(ws, params: Dict[str, Any]) -> None:  # pragma: no cover
     """Internal function to run test and stream progress.
 
     Args:

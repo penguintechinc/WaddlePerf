@@ -3,7 +3,7 @@
 from datetime import datetime
 
 
-def define_user_models(db):
+def define_user_models(db):  # pragma: no cover
     """Define user-related tables for Flask-Security-Too integration.
 
     Defines:

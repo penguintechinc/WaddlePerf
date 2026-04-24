@@ -87,10 +87,10 @@ func TestUDP(req UDPTestRequest) (*UDPTestResult, error) {
 		case "tls":
 			// DTLS not commonly implemented in Go stdlib
 			result.Error = "UDP+TLS (DTLS) not yet implemented"
-			return result, fmt.Errorf(result.Error)
+			return result, fmt.Errorf("%s", result.Error)
 		default:
 			result.Error = fmt.Sprintf("unsupported protocol: %s", protocol)
-			return result, fmt.Errorf(result.Error)
+			return result, fmt.Errorf("%s", result.Error)
 		}
 
 		if iterResult != nil && iterResult.Success {
